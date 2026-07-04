@@ -1,14 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowRight, FastForward, ShieldCheck, Star, Utensils } from "lucide-react";
+import { ArrowRight, FastForward, ShieldCheck, Utensils } from "lucide-react";
 import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50">
+    <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50">
 
-      {/* 1. HERO SECTION */}
+      {/* HERO SECTION */}
       <section className="relative mx-auto max-w-7xl px-4 pt-20 pb-16 sm:px-6 lg:px-8 lg:pt-32">
         <div className="text-center">
           <motion.h1
@@ -29,7 +29,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 2. FEATURES GRID */}
+      {/* FEATURES GRID */}
       <section className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
