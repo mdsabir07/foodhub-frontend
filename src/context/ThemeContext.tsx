@@ -15,9 +15,13 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const [theme, setTheme] = useState<Theme>("system");
     const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
+    const [mounted, setMounted] = useState(false);
     const [, startTransition] = useTransition();
 
     useEffect(() => {
+        startTransition(() => {
+            setMounted(true);
+        })
         // Fetch saved preference if available, else default to system
         const savedTheme = localStorage.getItem("foodhub-theme") as Theme || "system";
         startTransition(() => {
@@ -26,6 +30,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     useEffect(() => {
+        if (!mounted) return;
         const root = window.document.documentElement;
         const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -54,7 +59,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             mediaQuery.addEventListener("change", updateTheme);
             return () => mediaQuery.removeEventListener("change", updateTheme);
         }
-    }, [theme]);
+    }, [theme, mounted]);
 
     const handleThemeChange = (newTheme: Theme) => {
         startTransition(() => {
