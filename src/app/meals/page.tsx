@@ -2,21 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, SlidersHorizontal, Star, Clock, ShoppingBag, Plus, Minus, X, Utensils, Trash2, Loader2 } from "lucide-react";
+import { Search, SlidersHorizontal, ShoppingBag, Plus, Minus, X, Utensils, Trash2, Loader2 } from "lucide-react";
 import { mealService, BackendMeal } from "@/src/services/mealService";
+import MealCard, { MealItem } from "@/src/components/MealCard";
 
-interface MealItem {
-    id: string;
-    name: string;
-    provider: string;
-    price: number;
-    rating: number;
-    time: string;
-    category: string;
-    image: string;
-}
 
-const CATEGORIES = ["All", "Burgers", "Healthy", "Pizza", "Sushi", "Desserts", "Asian"];
 type SortOption = "default" | "price-low" | "price-high" | "rating";
 
 interface CartItem {
@@ -31,27 +21,42 @@ export default function MealsPage() {
     const [meals, setMeals] = useState<MealItem[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Search Optimization States
     const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [sortBy, setSortBy] = useState<SortOption>("default");
-    const [isSortOpen, setIsSortOpen] = useState(false);
     const [cart, setCart] = useState<CartItem[]>([]);
+
+    const [isSortOpen, setIsSortOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
+
+    const categories = ["All", ...Array.from(new Set(meals.map(meal => meal.category).filter(Boolean)))];
+
+    // 1. Debounce Effect: Delays query parameters execution by 400ms
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 400);
+
+        return () => {
+            clearTimeout(handler); // Clear timer if user presses another key before 400ms passes
+        };
+    }, [searchQuery]);
 
     // ⚡ Hook up live database queries on filter/category changes
     useEffect(() => {
         const fetchLiveMenuData = async () => {
             try {
                 setLoading(true);
-                const responseData = await mealService.getAllMeals(selectedCategory, searchQuery);
+                const responseData = await mealService.getAllMeals(selectedCategory, debouncedSearchQuery);
 
                 let rawMealsArray: BackendMeal[] = [];
-
                 if (Array.isArray(responseData)) {
                     rawMealsArray = responseData;
                 } else if (responseData && typeof responseData === "object") {
                     const wrapper = responseData as Record<string, unknown>;
-
                     if (Array.isArray(wrapper.meals)) {
                         rawMealsArray = wrapper.meals as BackendMeal[];
                     } else if (Array.isArray(wrapper.data)) {
@@ -64,20 +69,39 @@ export default function MealsPage() {
                     }
                 }
 
-                // Map safely over the verified array structure cleanly
                 const normalizedData = rawMealsArray.map((item: BackendMeal): MealItem => {
                     let providerName = "Gourmet Bistro";
+                    let categoryName = "General";
 
-                    // 🛠️ Look up property keys directly on the native type definition cleanly!
-                    if (item.kitchen && typeof item.kitchen === "object") {
-                        providerName = item.kitchen.name || providerName;
-                    } else if (item.provider && typeof item.provider === "object") {
-                        providerName = item.provider.name || providerName;
+                    // 1. Safe Provider/Kitchen Extraction
+                    if (item.kitchen && typeof item.kitchen === "object" && "name" in item.kitchen) {
+                        const kitchenName = item.kitchen.name;
+                        if (typeof kitchenName === "string" && kitchenName.trim() !== "") {
+                            providerName = kitchenName.trim();
+                        }
+                    } else if (item.provider && typeof item.provider === "object" && "name" in item.provider) {
+                        const providerNameValue = item.provider.name;
+                        if (typeof providerNameValue === "string" && providerNameValue.trim() !== "") {
+                            providerName = providerNameValue.trim();
+                        }
                     } else if (typeof item.provider === "string" && item.provider.trim() !== "") {
-                        providerName = item.provider;
-                    } else if (typeof item.kitchen === "string" && item.kitchen.trim() !== "") {
-                        providerName = item.kitchen;
+                        providerName = item.provider.trim();
                     }
+
+                    // 2. Safe Category Extraction
+                    if (typeof item.category === "string" && item.category.trim() !== "") {
+                        categoryName = item.category.trim();
+                    } else if (item.category && typeof item.category === "object" && "name" in item.category) {
+                        const categoryNameValue = item.category.name;
+                        if (typeof categoryNameValue === "string" && categoryNameValue.trim() !== "") {
+                            categoryName = categoryNameValue.trim();
+                        }
+                    }
+
+                    // 3. Safe Image Fallback Processing
+                    const mealImage = typeof item.image === "string" && item.image.trim() !== ""
+                        ? item.image
+                        : "🍔";
 
                     return {
                         id: item.id || item._id || Math.random().toString(),
@@ -86,8 +110,8 @@ export default function MealsPage() {
                         price: Number(item.price) || 0,
                         rating: item.rating || 4.8,
                         time: item.time || "15-25 min",
-                        category: item.category || "General",
-                        image: item.image || "🍔"
+                        category: categoryName,
+                        image: mealImage // 🍳 Image property restored safely!
                     };
                 });
 
@@ -100,15 +124,17 @@ export default function MealsPage() {
         };
 
         fetchLiveMenuData();
-    }, [selectedCategory, searchQuery]);
+    }, [selectedCategory, debouncedSearchQuery]);
 
     // 🔥 Cleaned Sorting Pipeline over our already structural string state
-    const filteredAndSortedMeals = [...meals].sort((a, b) => {
-        if (sortBy === "price-low") return a.price - b.price;
-        if (sortBy === "price-high") return b.price - a.price;
-        if (sortBy === "rating") return b.rating - a.rating;
-        return 0;
-    });
+    const filteredAndSortedMeals = [...meals]
+        .filter((meal) => selectedCategory === "All" || meal.category.toLowerCase() === selectedCategory.toLowerCase())
+        .sort((a, b) => {
+            if (sortBy === "price-low") return a.price - b.price;
+            if (sortBy === "price-high") return b.price - a.price;
+            if (sortBy === "rating") return b.rating - a.rating;
+            return 0;
+        });
 
     // 🛒 Upgraded Cart Operations System
     const addToCart = (meal: MealItem) => {
@@ -224,20 +250,23 @@ export default function MealsPage() {
                     </div>
                 </div>
 
-                {/* CATEGORY CAROUSEL CHIPS */}
-                <div className="flex items-center gap-2 overflow-x-auto py-4 no-scrollbar">
-                    {CATEGORIES.map((cat) => (
-                        <button
-                            key={cat}
-                            onClick={() => setSelectedCategory(cat)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap cursor-pointer transition-all ${selectedCategory === cat
-                                ? "bg-orange-600 text-white shadow-sm"
-                                : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
-                                }`}
-                        >
-                            {cat}
-                        </button>
-                    ))}
+                {/* Categories Filter Bar */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-3 pt-2 no-scrollbar">
+                    {categories.map((category) => {
+                        const isActive = selectedCategory.toLowerCase() === category.toLowerCase();
+                        return (
+                            <button
+                                key={category}
+                                onClick={() => setSelectedCategory(category)}
+                                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap cursor-pointer transition-all ${isActive
+                                    ? "bg-orange-600 text-white shadow-sm shadow-orange-600/20"
+                                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                                    }`}
+                            >
+                                {category}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -247,56 +276,16 @@ export default function MealsPage() {
                     <div className="text-center py-24 bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                         <Utensils className="h-12 w-12 text-slate-300 mx-auto mb-3" />
                         <h3 className="text-lg font-bold">No items found</h3>
-                        <p className="text-sm text-slate-500 max-w-xs mx-auto mt-1">We couldn't find anything matching your adjustments.</p>
+                        <p className="text-sm text-slate-500 max-w-xs mx-auto mt-1">We couldn&apos;t find anything matching your adjustments.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredAndSortedMeals.map((meal) => (
-                            <div
+                            <MealCard
                                 key={meal.id}
-                                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/60 p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
-                            >
-                                <div>
-                                    {/* 1. Meal Image / Emoji */}
-                                    <div className="text-4xl mb-3">{meal.image}</div>
-
-                                    {/* 2. Meal Name */}
-                                    <h3 className="font-bold text-lg text-slate-900 dark:text-white line-clamp-1">{meal.name}</h3>
-
-                                    {/* 3. Provider Name - 🔥 THE ABSOLUTE CRASH FIX */}
-                                    <p className="text-xs text-slate-500 mt-1">
-                                        By {typeof meal.provider === 'object'
-                                            ? ((meal.provider as any)?.name || "Gourmet Bistro")
-                                            : String(meal.provider || "Gourmet Bistro")}
-                                    </p>
-
-                                    {/* 4. Details row (Rating, Time, Category) */}
-                                    <div className="flex items-center gap-4 mt-3 text-xs text-slate-400">
-                                        <div className="flex items-center gap-1">
-                                            <Star className="h-3.5 w-3.5 fill-amber-400 stroke-amber-400" />
-                                            <span className="font-semibold text-slate-600 dark:text-slate-300">{meal.rating}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <Clock className="h-3.5 w-3.5" />
-                                            <span>{meal.time}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* 5. Bottom row: Price and Add Button */}
-                                <div className="mt-5 flex items-center justify-between border-t border-slate-50 dark:border-slate-800/40 pt-4">
-                                    <span className="text-lg font-bold text-slate-900 dark:text-white">
-                                        ${Number(meal.price).toFixed(2)}
-                                    </span>
-
-                                    <button
-                                        onClick={() => addToCart(meal)}
-                                        className="flex items-center justify-center gap-2 py-2 px-4 bg-slate-100 dark:bg-slate-800/80 text-slate-900 dark:text-white rounded-xl text-sm font-semibold hover:bg-orange-600 hover:text-white dark:hover:bg-orange-600 cursor-pointer transition-all"
-                                    >
-                                        <ShoppingBag className="h-4 w-4" /> Add
-                                    </button>
-                                </div>
-                            </div>
+                                meal={meal}
+                                onAddToCart={addToCart}
+                            />
                         ))}
                     </div>
                 )}
