@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, SlidersHorizontal, Star, Clock, ShoppingBag, Plus, Minus, X, Utensils, Trash2, ArrowUpDown, Loader2 } from "lucide-react";
-import { mealService } from "@/src/services/mealService";
+import { Search, SlidersHorizontal, Star, Clock, ShoppingBag, Plus, Minus, X, Utensils, Trash2, Loader2 } from "lucide-react";
+import { mealService, BackendMeal } from "@/src/services/mealService";
 
-// Defining an explicit type interface matching the incoming backend structure
 interface MealItem {
     id: string;
     name: string;
-    provider: string; // If your backend uses 'kitchen.name', map this field safely below
+    provider: string;
     price: number;
     rating: number;
     time: string;
@@ -44,19 +43,53 @@ export default function MealsPage() {
         const fetchLiveMenuData = async () => {
             try {
                 setLoading(true);
-                const data = await mealService.getAllMeals(selectedCategory, searchQuery);
+                const responseData = await mealService.getAllMeals(selectedCategory, searchQuery);
 
-                // TypeScript now perfectly knows 'data' is an array, and 'item' matches BackendMeal!
-                const normalizedData = data.map((item: BackendMeal) => ({
-                    id: item.id || item._id || Math.random().toString(),
-                    name: item.title || item.name || "Untitled Meal",
-                    provider: item.kitchen?.name || item.provider || "Gourmet Bistro",
-                    price: Number(item.price),
-                    rating: item.rating || 4.8,
-                    time: item.time || "15-25 min",
-                    category: item.category,
-                    image: item.image || "🍔"
-                }));
+                let rawMealsArray: BackendMeal[] = [];
+
+                if (Array.isArray(responseData)) {
+                    rawMealsArray = responseData;
+                } else if (responseData && typeof responseData === "object") {
+                    const wrapper = responseData as Record<string, unknown>;
+
+                    if (Array.isArray(wrapper.meals)) {
+                        rawMealsArray = wrapper.meals as BackendMeal[];
+                    } else if (Array.isArray(wrapper.data)) {
+                        rawMealsArray = wrapper.data as BackendMeal[];
+                    } else {
+                        const fallbackArray = Object.values(wrapper).find(Array.isArray);
+                        if (fallbackArray) {
+                            rawMealsArray = fallbackArray as BackendMeal[];
+                        }
+                    }
+                }
+
+                // Map safely over the verified array structure cleanly
+                const normalizedData = rawMealsArray.map((item: BackendMeal): MealItem => {
+                    let providerName = "Gourmet Bistro";
+
+                    // 🛠️ Look up property keys directly on the native type definition cleanly!
+                    if (item.kitchen && typeof item.kitchen === "object") {
+                        providerName = item.kitchen.name || providerName;
+                    } else if (item.provider && typeof item.provider === "object") {
+                        providerName = item.provider.name || providerName;
+                    } else if (typeof item.provider === "string" && item.provider.trim() !== "") {
+                        providerName = item.provider;
+                    } else if (typeof item.kitchen === "string" && item.kitchen.trim() !== "") {
+                        providerName = item.kitchen;
+                    }
+
+                    return {
+                        id: item.id || item._id || Math.random().toString(),
+                        name: item.title || item.name || "Untitled Meal",
+                        provider: providerName,
+                        price: Number(item.price) || 0,
+                        rating: item.rating || 4.8,
+                        time: item.time || "15-25 min",
+                        category: item.category || "General",
+                        image: item.image || "🍔"
+                    };
+                });
 
                 setMeals(normalizedData);
             } catch (error) {
@@ -69,8 +102,8 @@ export default function MealsPage() {
         fetchLiveMenuData();
     }, [selectedCategory, searchQuery]);
 
-    // 🔥 Integrated Sorting Pipeline over the live dataset
-    const sortedMeals = [...meals].sort((a, b) => {
+    // 🔥 Cleaned Sorting Pipeline over our already structural string state
+    const filteredAndSortedMeals = [...meals].sort((a, b) => {
         if (sortBy === "price-low") return a.price - b.price;
         if (sortBy === "price-high") return b.price - a.price;
         if (sortBy === "rating") return b.rating - a.rating;
@@ -117,6 +150,7 @@ export default function MealsPage() {
             </div>
         );
     }
+
 
     return (
         <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors duration-200">
@@ -216,51 +250,53 @@ export default function MealsPage() {
                         <p className="text-sm text-slate-500 max-w-xs mx-auto mt-1">We couldn't find anything matching your adjustments.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredAndSortedMeals.map((meal) => (
-                            <motion.div
+                            <div
                                 key={meal.id}
-                                layout
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden group hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xl hover:shadow-slate-200/20 dark:hover:shadow-none transition-all"
+                                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/60 p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
                             >
-                                <div className="h-44 bg-slate-100 dark:bg-slate-950 flex items-center justify-center text-9xl select-none relative group-hover:scale-[1.02] transition-transform duration-300">
-                                    {meal.image}
-                                    <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-white/90 dark:bg-slate-900/90 text-xs font-bold text-orange-600 dark:text-orange-400 backdrop-blur-xs">
-                                        {meal.category}
-                                    </span>
-                                </div>
+                                <div>
+                                    {/* 1. Meal Image / Emoji */}
+                                    <div className="text-4xl mb-3">{meal.image}</div>
 
-                                <div className="p-5">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div>
-                                            <h3 className="font-bold text-lg leading-snug group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">{meal.name}</h3>
-                                            <p className="text-xs text-slate-500 mt-0.5">by {meal.provider}</p>
-                                        </div>
-                                        <span className="text-xl font-black text-slate-900 dark:text-white">${meal.price.toFixed(2)}</span>
-                                    </div>
+                                    {/* 2. Meal Name */}
+                                    <h3 className="font-bold text-lg text-slate-900 dark:text-white line-clamp-1">{meal.name}</h3>
 
-                                    <div className="flex items-center gap-4 mt-4 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800/60 pt-3">
-                                        <div className="flex items-center gap-1 text-amber-500 font-semibold">
-                                            <Star className="h-4 w-4 fill-amber-500" />
-                                            <span>{meal.rating}</span>
+                                    {/* 3. Provider Name - 🔥 THE ABSOLUTE CRASH FIX */}
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        By {typeof meal.provider === 'object'
+                                            ? ((meal.provider as any)?.name || "Gourmet Bistro")
+                                            : String(meal.provider || "Gourmet Bistro")}
+                                    </p>
+
+                                    {/* 4. Details row (Rating, Time, Category) */}
+                                    <div className="flex items-center gap-4 mt-3 text-xs text-slate-400">
+                                        <div className="flex items-center gap-1">
+                                            <Star className="h-3.5 w-3.5 fill-amber-400 stroke-amber-400" />
+                                            <span className="font-semibold text-slate-600 dark:text-slate-300">{meal.rating}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <Clock className="h-4 w-4" />
+                                            <Clock className="h-3.5 w-3.5" />
                                             <span>{meal.time}</span>
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* 5. Bottom row: Price and Add Button */}
+                                <div className="mt-5 flex items-center justify-between border-t border-slate-50 dark:border-slate-800/40 pt-4">
+                                    <span className="text-lg font-bold text-slate-900 dark:text-white">
+                                        ${Number(meal.price).toFixed(2)}
+                                    </span>
 
                                     <button
                                         onClick={() => addToCart(meal)}
-                                        className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-slate-100 dark:bg-slate-800/80 text-slate-900 dark:text-white rounded-xl text-sm font-semibold hover:bg-orange-600 hover:text-white dark:hover:bg-orange-600 cursor-pointer transition-all"
+                                        className="flex items-center justify-center gap-2 py-2 px-4 bg-slate-100 dark:bg-slate-800/80 text-slate-900 dark:text-white rounded-xl text-sm font-semibold hover:bg-orange-600 hover:text-white dark:hover:bg-orange-600 cursor-pointer transition-all"
                                     >
-                                        <Plus className="h-4 w-4" />
-                                        <span>Add to Basket</span>
+                                        <ShoppingBag className="h-4 w-4" /> Add
                                     </button>
                                 </div>
-                            </motion.div>
+                            </div>
                         ))}
                     </div>
                 )}

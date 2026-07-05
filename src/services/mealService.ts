@@ -1,6 +1,12 @@
 import { api } from "@/src/lib/api";
 
-// 1. Define the exact shape your backend sends back
+export interface BackendKitchen {
+    id?: string;
+    name: string;
+    slug?: string;
+    createdAt?: string;
+}
+
 export interface BackendMeal {
     id?: string;
     _id?: string;
@@ -11,14 +17,11 @@ export interface BackendMeal {
     image?: string;
     rating?: number;
     time?: string;
-    kitchen?: {
-        name: string;
-    };
-    provider?: string;
+    kitchen?: BackendKitchen | string;
+    provider?: BackendKitchen | string;
 }
 
 export const mealService = {
-    // 2. Type the Promise return value explicitly as an array of BackendMeal
     getAllMeals: async (category?: string, search?: string): Promise<BackendMeal[]> => {
         const queryParams: Record<string, string> = {};
 
@@ -34,7 +37,6 @@ export const mealService = {
             params: queryParams,
         });
 
-        // Returning the pure array data directly
         return response.data;
     },
 };
