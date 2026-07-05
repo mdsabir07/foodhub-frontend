@@ -1,17 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, SlidersHorizontal, Star, Clock, ShoppingBag, Plus, Minus, X, Utensils, Trash2, ArrowUpDown } from "lucide-react";
+import { Search, SlidersHorizontal, Star, Clock, ShoppingBag, Plus, Minus, X, Utensils, Trash2, ArrowUpDown, Loader2 } from "lucide-react";
+import { mealService } from "@/src/services/mealService";
 
-const MOCK_MEALS = [
-    { id: "m1", name: "Truffle Glazed Burger", provider: "Gourmet Bistro", price: 16.50, rating: 4.9, time: "15-25 min", category: "Burgers", image: "🍔" },
-    { id: "m2", name: "Fresh Salmon Poke Bowl", provider: "Zen Foods", price: 14.20, rating: 4.8, time: "20-30 min", category: "Healthy", image: "🥗" },
-    { id: "m3", name: "Artisanal Pepperoni Pizza", provider: "Luigi's Kitchen", price: 18.00, rating: 4.7, time: "25-35 min", category: "Pizza", image: "🍕" },
-    { id: "m4", name: "Crunchy Avocado Roll", provider: "Sakura Sushi", price: 12.00, rating: 4.6, time: "10-20 min", category: "Sushi", image: "🍣" },
-    { id: "m5", name: "Velvet Chocolate Lava Cake", provider: "Sweet Treats", price: 8.50, rating: 4.9, time: "10-15 min", category: "Desserts", image: "🍰" },
-    { id: "m6", name: "Spicy Thai Basil Chicken", provider: "Bangkok Street", price: 15.00, rating: 4.8, time: "20-30 min", category: "Asian", image: "🍛" },
-];
+// Defining an explicit type interface matching the incoming backend structure
+interface MealItem {
+    id: string;
+    name: string;
+    provider: string; // If your backend uses 'kitchen.name', map this field safely below
+    price: number;
+    rating: number;
+    time: string;
+    category: string;
+    image: string;
+}
 
 const CATEGORIES = ["All", "Burgers", "Healthy", "Pizza", "Sushi", "Desserts", "Asian"];
 type SortOption = "default" | "price-low" | "price-high" | "rating";
@@ -24,6 +28,10 @@ interface CartItem {
 }
 
 export default function MealsPage() {
+    // Live Database Feed States
+    const [meals, setMeals] = useState<MealItem[]>([]);
+    const [loading, setLoading] = useState(true);
+
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [sortBy, setSortBy] = useState<SortOption>("default");
@@ -31,21 +39,46 @@ export default function MealsPage() {
     const [cart, setCart] = useState<CartItem[]>([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
 
-    // 🔥 Integrated Filter + Sort Logic Pipeline
-    const filteredAndSortedMeals = MOCK_MEALS.filter((meal) => {
-        const matchesSearch = meal.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            meal.provider.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = selectedCategory === "All" || meal.category === selectedCategory;
-        return matchesSearch && matchesCategory;
-    }).sort((a, b) => {
+    // ⚡ Hook up live database queries on filter/category changes
+    useEffect(() => {
+        const fetchLiveMenuData = async () => {
+            try {
+                setLoading(true);
+                const data = await mealService.getAllMeals(selectedCategory, searchQuery);
+
+                // TypeScript now perfectly knows 'data' is an array, and 'item' matches BackendMeal!
+                const normalizedData = data.map((item: BackendMeal) => ({
+                    id: item.id || item._id || Math.random().toString(),
+                    name: item.title || item.name || "Untitled Meal",
+                    provider: item.kitchen?.name || item.provider || "Gourmet Bistro",
+                    price: Number(item.price),
+                    rating: item.rating || 4.8,
+                    time: item.time || "15-25 min",
+                    category: item.category,
+                    image: item.image || "🍔"
+                }));
+
+                setMeals(normalizedData);
+            } catch (error) {
+                console.error("Failed to query live meals stream:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchLiveMenuData();
+    }, [selectedCategory, searchQuery]);
+
+    // 🔥 Integrated Sorting Pipeline over the live dataset
+    const sortedMeals = [...meals].sort((a, b) => {
         if (sortBy === "price-low") return a.price - b.price;
         if (sortBy === "price-high") return b.price - a.price;
         if (sortBy === "rating") return b.rating - a.rating;
-        return 0; // default layout order
+        return 0;
     });
 
     // 🛒 Upgraded Cart Operations System
-    const addToCart = (meal: typeof MOCK_MEALS[0]) => {
+    const addToCart = (meal: MealItem) => {
         setCart((prev) => {
             const existing = prev.find((item) => item.id === meal.id);
             if (existing) {
@@ -66,13 +99,24 @@ export default function MealsPage() {
         }).filter(Boolean) as CartItem[]);
     };
 
-    // 🗑️ NEW: Clear item completely from state
     const removeFromCart = (id: string) => {
         setCart((prev) => prev.filter((item) => item.id !== id));
     };
 
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+    // Render a clean layout loader when fetching data streams from localhost:4000
+    if (loading && meals.length === 0) {
+        return (
+            <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
+                <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+                <p className="text-xs font-bold text-slate-400 mt-3 uppercase tracking-widest">
+                    Fetching Kitchen Menu...
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 transition-colors duration-200">
@@ -102,8 +146,8 @@ export default function MealsPage() {
                             <button
                                 onClick={() => setIsSortOpen(!isSortOpen)}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border cursor-pointer transition-all ${sortBy !== "default"
-                                        ? "border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400"
-                                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-950"
+                                    ? "border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400"
+                                    : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-950"
                                     }`}
                             >
                                 <SlidersHorizontal className="h-4 w-4" />
@@ -153,8 +197,8 @@ export default function MealsPage() {
                             key={cat}
                             onClick={() => setSelectedCategory(cat)}
                             className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap cursor-pointer transition-all ${selectedCategory === cat
-                                    ? "bg-orange-600 text-white shadow-sm"
-                                    : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
+                                ? "bg-orange-600 text-white shadow-sm"
+                                : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
                                 }`}
                         >
                             {cat}
@@ -181,7 +225,7 @@ export default function MealsPage() {
                                 animate={{ opacity: 1, scale: 1 }}
                                 className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden group hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-xl hover:shadow-slate-200/20 dark:hover:shadow-none transition-all"
                             >
-                                <div className="h-44 bg-slate-100 dark:bg-slate-950 flex items-center justify-center text-6xl select-none relative group-hover:scale-[1.02] transition-transform duration-300">
+                                <div className="h-44 bg-slate-100 dark:bg-slate-950 flex items-center justify-center text-9xl select-none relative group-hover:scale-[1.02] transition-transform duration-300">
                                     {meal.image}
                                     <span className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-white/90 dark:bg-slate-900/90 text-xs font-bold text-orange-600 dark:text-orange-400 backdrop-blur-xs">
                                         {meal.category}
