@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/src/lib/api";
+import { getErrorMessage } from "@/src/lib/error";
 import { MapPin, Phone, ShoppingBag, CreditCard, Loader2 } from "lucide-react";
 
 interface CartItem {
@@ -75,8 +76,8 @@ export default function CheckoutPage() {
             } else {
                 setError(res.data?.message || "Order rejection returned from server.");
             }
-        } catch (err: any) {
-            setError(err.response?.data?.message || "Network timeout encountered while placing order.");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "Network timeout encountered while placing order."));
         } finally {
             setPending(false);
         }

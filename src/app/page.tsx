@@ -41,10 +41,12 @@ export default function HomePage() {
 
         const normalizedData = rawMealsArray.map((item: BackendMeal): MealItem => {
           let providerName = "Gourmet Bistro";
-          if (item.kitchen && typeof item.kitchen === "object" && (item.kitchen as any).name) {
-            providerName = (item.kitchen as any).name;
-          } else if (item.provider && typeof item.provider === "object" && (item.provider as any).name) {
-            providerName = (item.provider as any).name;
+          if (item.kitchen && typeof item.kitchen === "object") {
+            const kitchenObj = item.kitchen as Record<string, unknown>;
+            if (typeof kitchenObj.name === "string") providerName = kitchenObj.name;
+          } else if (item.provider && typeof item.provider === "object") {
+            const providerObj = item.provider as Record<string, unknown>;
+            if (typeof providerObj.name === "string") providerName = providerObj.name;
           }
 
           return {
@@ -54,7 +56,7 @@ export default function HomePage() {
             price: Number(item.price) || 0,
             rating: item.rating || 4.8,
             time: item.time || "20-30 min",
-            category: typeof item.category === "string" ? item.category : ((item.category as any)?.name || "General"),
+            category: typeof item.category === "string" ? item.category : ((item.category as Record<string, unknown>)?.name as string | undefined) || "General",
             image: typeof item.image === "string" && item.image.trim() !== "" ? item.image : "🍳"
           };
         });

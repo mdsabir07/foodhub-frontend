@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/src/lib/api";
+import { getErrorMessage } from "@/src/lib/error";
 import { ChefHat, CookingPot, Truck, CheckCircle, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 
 interface OrderItem {
@@ -35,9 +36,9 @@ export default function ProviderOrdersPage() {
             if (Array.isArray(data) && active) {
                 setOrders(data);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             if (active) {
-                setError(err.response?.data?.message || "Failed to load kitchen order streams.");
+                setError(getErrorMessage(err, "Failed to load kitchen order streams."));
             }
         } finally {
             if (active) {
@@ -67,8 +68,8 @@ export default function ProviderOrdersPage() {
                 // Update local state arrays seamlessly
                 setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: nextStatus } : o));
             }
-        } catch (err: any) {
-            alert(err.response?.data?.message || "Failed to update target status marker.");
+        } catch (err: unknown) {
+            alert(getErrorMessage(err, "Failed to update target status marker."));
         } finally {
             setUpdatingId(null);
         }

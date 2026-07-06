@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/src/lib/api";
+import { getErrorMessage } from "@/src/lib/error";
 import { ClipboardList, Clock, MapPin, XCircle, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface OrderItem {
@@ -26,25 +27,24 @@ export default function CustomerOrdersPage() {
     const [error, setError] = useState("");
     const [actionPending, setActionPending] = useState<string | null>(null);
 
-    // Fetch orders directly from backend API
-    const fetchOrders = async () => {
-        try {
-            const res = await api.get("/orders");
-            if (res.data?.success || Array.isArray(res.data)) {
-                // Adjust depending on whether backend returns data nested under a success key or as a raw array
-                setOrders(res.data?.success ? res.data.orders : res.data);
-            } else {
-                setError("Failed to resolve orders payload matrix.");
-            }
-        } catch (err: any) {
-            setError(err.response?.data?.message || "Could not synchronize with transaction server.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
-        fetchOrders();
+        const loadOrders = async () => {
+            try {
+                const res = await api.get("/orders");
+                if (res.data?.success || Array.isArray(res.data)) {
+                    // Adjust depending on whether backend returns data nested under a success key or as a raw array
+                    setOrders(res.data?.success ? res.data.orders : res.data);
+                } else {
+                    setError("Failed to resolve orders payload matrix.");
+                }
+            } catch (err: unknown) {
+                setError(getErrorMessage(err, "Could not synchronize with transaction server."));
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void loadOrders();
     }, []);
 
     // Handle order cancellation from the frontend
@@ -58,8 +58,8 @@ export default function CustomerOrdersPage() {
                 // Optimistically update local UI state mapping
                 setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: "CANCELLED" } : o));
             }
-        } catch (err: any) {
-            alert(err.response?.data?.message || "Failed to update state pipeline machine.");
+        } catch (err: unknown) {
+            alert(getErrorMessage(err, "Failed to update state pipeline machine."));
         } finally {
             setActionPending(null);
         }

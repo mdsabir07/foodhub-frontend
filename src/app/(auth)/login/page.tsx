@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/context/AuthContext";
 import { api } from "@/src/lib/api";
+import { getErrorMessage } from "@/src/lib/error";
 import { Mail, Lock, AlertCircle, Loader2, LogIn } from "lucide-react";
 import Link from "next/link";
 
@@ -46,8 +47,8 @@ export default function LoginPage() {
             } else {
                 setError(res.data?.message || "Invalid email or password combination.");
             }
-        } catch (err: any) {
-            setError(err.response?.data?.message || "Connection refused. Ensure your backend server is running.");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "Connection refused. Ensure your backend server is running."));
         } finally {
             setPending(false);
         }

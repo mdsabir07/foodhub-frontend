@@ -1,27 +1,26 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { api } from "@/src/lib/api";
-import { User, Mail, Lock, Store, Utensils, AlertCircle, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { useAppRouter } from "@/src/hooks/useAppRouter";
+import { authClient } from "@/src/lib/auth-client";
+import { getErrorMessage } from "@/src/lib/error";
+import { AlertCircle, CheckCircle2, Loader2, Lock, Mail, Store, User, Utensils, XCircle } from "lucide-react";
 import Link from "next/link";
+import React, { useState } from "react";
 
 export default function RegisterPage() {
-    const router = useRouter();
+    const router = useAppRouter();
 
-    // Form Field States
+    // form states 
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [role, setRole] = useState<"CUSTOMER" | "PROVIDER">("CUSTOMER");
 
-    // Status States
+    // Status states
     const [error, setError] = useState("");
     const [pending, setPending] = useState(false);
 
-    // Live Password Validation Flags
-    const isConfirmFieldDirty = confirmPassword.length > 0;
+    // Live password validation flags
+    const isConfirmFieldDirty = password.length > 0;
     const passwordsMatch = password === confirmPassword;
     const isPasswordLongEnough = password.length >= 6;
 
@@ -29,28 +28,31 @@ export default function RegisterPage() {
         e.preventDefault();
         setError("");
 
-        // Fallback sanity checks before firing payload
         if (!isPasswordLongEnough) {
             setError("Password must be at least 6 characters long.");
             return;
         }
         if (!passwordsMatch) {
-            setError("Passwords do not match.");
+            setError("Password do not match.");
             return;
         }
 
         setPending(true);
 
         try {
-            const res = await api.post("/auth/register", { name, email, password, role });
+            const { error: authError } = await authClient.signUp.email({
+                email, password, name
+            });
 
-            if (res.data?.success || res.status === 201 || res.status === 200) {
-                router.push("/login");
-            } else {
-                setError(res.data?.message || "Registration failed. Please check your details.");
+            if (authError) {
+                setError(authError.message || "Registration failed. Please check your details.");
+                return;
             }
-        } catch (err: any) {
-            setError(err.response?.data?.message || "A network error occurred during account creation.");
+
+            // Route user directly to the login screen upon successful account creation
+            router.replace("/login");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "A pipeline network error occurred during account validation."));
         } finally {
             setPending(false);
         }
@@ -66,7 +68,7 @@ export default function RegisterPage() {
                 </div>
 
                 {error && (
-                    <div className="flex items-center gap-2 p-3 bg-red-500/10 text-red-600 rounded-xl text-xs font-semibold animate-shake">
+                    <div className="flex items-center gap-2 p-3 bg-red-500/10 text-red-600 rounded-xl text-xs font-semibold">
                         <AlertCircle className="h-4 w-4 shrink-0" /> <span>{error}</span>
                     </div>
                 )}
@@ -104,7 +106,7 @@ export default function RegisterPage() {
                         <label className="text-[10px] font-bold text-slate-400 uppercase">Full Identity Name</label>
                         <div className="relative">
                             <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                            <input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={pending} className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm rounded-xl outline-none" placeholder="Jane Doe" required />
+                            <input type="text" value={name} onChange={(e) => setName(e.target.value)} disabled={pending} className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm rounded-xl outline-none text-slate-900 dark:text-slate-100" placeholder="Jane Doe" required />
                         </div>
                     </div>
 
@@ -113,7 +115,7 @@ export default function RegisterPage() {
                         <label className="text-[10px] font-bold text-slate-400 uppercase">Email Address</label>
                         <div className="relative">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={pending} className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm rounded-xl outline-none" placeholder="name@domain.com" required />
+                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={pending} className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm rounded-xl outline-none text-slate-900 dark:text-slate-100" placeholder="name@domain.com" required />
                         </div>
                     </div>
 
@@ -122,14 +124,14 @@ export default function RegisterPage() {
                         <label className="text-[10px] font-bold text-slate-400 uppercase">Password</label>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={pending} className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm rounded-xl outline-none" placeholder="••••••••" required />
+                            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={pending} className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm rounded-xl outline-none text-slate-900 dark:text-slate-100" placeholder="••••••••" required />
                         </div>
                         {password && !isPasswordLongEnough && (
                             <p className="text-[11px] text-red-500 font-medium pt-0.5">Password must be at least 6 characters long.</p>
                         )}
                     </div>
 
-                    {/* CONFIRM PASSWORD WITH INSTANT LIVE FEEDBACK MATCHING */}
+                    {/* CONFIRM PASSWORD */}
                     <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase">Confirm Password</label>
                         <div className="relative">
@@ -139,7 +141,7 @@ export default function RegisterPage() {
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 disabled={pending}
-                                className={`w-full pl-11 pr-10 py-2.5 bg-slate-50 dark:bg-slate-950 border text-sm rounded-xl outline-none transition-all ${isConfirmFieldDirty
+                                className={`w-full pl-11 pr-10 py-2.5 bg-slate-50 dark:bg-slate-950 border text-sm rounded-xl outline-none transition-all text-slate-900 dark:text-slate-100 ${isConfirmFieldDirty
                                     ? passwordsMatch
                                         ? "border-emerald-500 focus:border-emerald-500"
                                         : "border-red-500 focus:border-red-500"
@@ -159,14 +161,14 @@ export default function RegisterPage() {
                             )}
                         </div>
                         {isConfirmFieldDirty && !passwordsMatch && (
-                            <p className="text-[11px] text-red-500 font-medium pt-0.5 animate-pulse">Passwords do not match yet.</p>
+                            <p className="text-[11px] text-red-500 font-medium pt-0.5">Passwords do not match yet.</p>
                         )}
                     </div>
 
                     <button
                         type="submit"
                         disabled={pending || (isConfirmFieldDirty && !passwordsMatch) || !isPasswordLongEnough}
-                        className="w-full py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 font-bold text-xs rounded-xl shadow-md transition-all uppercase tracking-wider mt-2 flex items-center justify-center gap-2 cursor-pointer"
+                        className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 font-bold text-xs rounded-xl shadow-md transition-all uppercase tracking-wider mt-2 flex items-center justify-center gap-2 cursor-pointer"
                     >
                         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalize Profile Registration"}
                     </button>
