@@ -1,101 +1,132 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { UtensilsCrossed, Mail, Lock, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/src/context/AuthContext";
-import { useAppRouter } from "@/src/hooks/useAppRouter";
+import { api } from "@/src/lib/api";
+import { Mail, Lock, AlertCircle, Loader2, LogIn } from "lucide-react";
+import Link from "next/link";
 
 export default function LoginPage() {
-    const { login } = useAuth();
-    const { navigate } = useAppRouter();
+    const router = useRouter();
+    const { login } = useAuth(); // Using your pre-existing login state setter
 
+    // Field Form States
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    // Status Control States
+    const [error, setError] = useState("");
+    const [pending, setPending] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        setErrorMessage(null);
+        setError("");
+        setPending(true);
 
         try {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // 1. Post credentials directly to your backend authentication endpoint
+            const res = await api.post("/auth/login", { email, password });
 
-            if (email === "provider@foodhub.com") {
-                login({ id: "p1", email: "provider@foodhub.com", name: "Gourmet Bistro", role: "PROVIDER" });
-                navigate("/provider/dashboard");
-            } else if (email === "admin@foodhub.com") {
-                login({ id: "a1", email: "admin@foodhub.com", name: "System Admin", role: "ADMIN" });
-                navigate("/admin");
+            if (res.data?.success && res.data?.user) {
+                const loggedInUser = res.data.user;
+
+                // 2. Hydrate your global AuthContext state so route guards recognize the session
+                login(loggedInUser);
+
+                // 3. Evaluate the uppercase role and instantly route to the correct workspace
+                const role = loggedInUser.role;
+                if (role === "ADMIN") {
+                    router.push("/admin");
+                } else if (role === "PROVIDER") {
+                    router.push("/provider/dashboard");
+                } else {
+                    router.push("/meals"); // Default customer landing marketplace
+                }
             } else {
-                login({ id: "c1", email: email || "customer@foodhub.com", name: "Alex Johnson", role: "CUSTOMER" });
-                navigate("/meals");
+                setError(res.data?.message || "Invalid email or password combination.");
             }
-        } catch (err) {
-            setErrorMessage("Invalid credentials.");
+        } catch (err: any) {
+            setError(err.response?.data?.message || "Connection refused. Ensure your backend server is running.");
         } finally {
-            setIsSubmitting(false);
+            setPending(false);
         }
     };
 
     return (
-        <div className="grid min-h-[calc(100vh-4rem)] grid-cols-1 lg:grid-cols-12 bg-slate-50 dark:bg-slate-950">
-            <div className="flex flex-col justify-center px-6 py-12 lg:col-span-5 lg:px-12 xl:px-16 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
-                <div className="mx-auto w-full max-w-sm">
-                    <div className="flex items-center gap-2 text-xl font-bold text-orange-600 mb-8">
-                        <UtensilsCrossed className="h-6 w-6" />
-                        <span>FoodHub</span>
-                    </div>
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-6 shadow-sm">
 
-                    <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Welcome back</h2>
-                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                        Don't have an account?{" "}
-                        <Link href="/register" className="font-semibold text-orange-600 dark:text-orange-400 hover:underline">Sign up today</Link>
-                    </p>
-
-                    {errorMessage && (
-                        <div className="mt-6 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/30 p-4 text-sm text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50">
-                            <AlertCircle className="h-5 w-5 shrink-0" />
-                            <span>{errorMessage}</span>
-                        </div>
-                    )}
-
-                    <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Email address</label>
-                            <div className="relative mt-1">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><Mail className="h-5 w-5" /></span>
-                                <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className="block w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm" />
-                            </div>
-                        </div>
-
-                        <div>
-                            <div className="flex items-center justify-between"><label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Password</label></div>
-                            <div className="relative mt-1">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400"><Lock className="h-5 w-5" /></span>
-                                <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="block w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm" />
-                            </div>
-                        </div>
-
-                        <button type="submit" disabled={isSubmitting} className="group flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 font-medium text-white hover:bg-orange-500 disabled:bg-orange-600/70 shadow-lg shadow-orange-600/10 cursor-pointer transition-all">
-                            {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <><span>Sign In</span><ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" /></>}
-                        </button>
-                    </form>
-
-                    <div className="mt-8 rounded-xl bg-slate-50 dark:bg-slate-950 p-4 border border-slate-100 dark:border-slate-800/60">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Sandbox Test User:</h4>
-                        <p className="text-xs text-slate-500">💡 Use <code className="text-orange-600 font-mono">provider@foodhub.com</code> to check out the Provider interface.</p>
-                    </div>
+                <div>
+                    <h2 className="text-2xl font-black text-slate-950 dark:text-white tracking-tight">Welcome Back</h2>
+                    <p className="text-xs text-slate-400 mt-1">Sign in to resume tracking orders and managing menus.</p>
                 </div>
-            </div>
 
-            <div className="hidden lg:flex lg:col-span-7 bg-radial from-orange-600/10 via-transparent to-transparent items-center justify-center p-12">
-                <div className="max-w-md text-center">
-                    <div className="relative inline-flex items-center justify-center mb-8 h-24 w-24 rounded-2xl bg-orange-600 text-white shadow-xl shadow-orange-600/20"><UtensilsCrossed className="h-12 w-12" /></div>
-                    <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Savor the ease of local dining</h3>
-                    <p className="mt-3 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">Gain complete access to premium restaurant menus and live delivery updates on a single, responsive canvas.</p>
+                {error && (
+                    <div className="flex items-center gap-2 p-3 bg-red-500/10 text-red-600 rounded-xl text-xs font-semibold">
+                        <AlertCircle className="h-4 w-4 shrink-0" /> <span>{error}</span>
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+
+                    {/* EMAIL INPUT */}
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Email Address</label>
+                        <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                disabled={pending}
+                                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm rounded-xl outline-none text-slate-800 dark:text-slate-100 font-medium"
+                                placeholder="name@domain.com"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* PASSWORD INPUT */}
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase">Password</label>
+                        <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                disabled={pending}
+                                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm rounded-xl outline-none text-slate-800 dark:text-slate-100 font-medium"
+                                placeholder="••••••••"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* ACTION BUTTON */}
+                    <button
+                        type="submit"
+                        disabled={pending}
+                        className="w-full py-3 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 font-bold text-xs rounded-xl shadow-md transition-all uppercase tracking-wider mt-2 flex items-center justify-center gap-2 cursor-pointer text-white"
+                    >
+                        {pending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <>
+                                <LogIn className="h-4 w-4" /> Authenticate Session
+                            </>
+                        )}
+                    </button>
+                </form>
+                <div className="text-center pt-4 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-500">
+                    <span>Don't have an account? </span>
+                    <Link
+                        href="/register"
+                        className="text-orange-600 hover:underline transition-all cursor-pointer font-bold"
+                    >
+                        Sign Up
+                    </Link>
                 </div>
             </div>
         </div>
