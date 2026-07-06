@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useTransition } from "react";
-import { api } from "../lib/api";
+import React, { createContext, useContext } from "react";
+import { authClient } from "../lib/auth-client";
 
 interface User {
     id: string;
@@ -21,44 +21,32 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [, startTransition] = useTransition();
+    // 🛡️ Read reactive session state directly from the hook wrapper
+    const { data: session, isPending: loading } = authClient.useSession();
 
-    // Check if the user has an active backend session cookie on initialization
-    const refreshUser = async () => {
-        try {
-            const response = await api.get("/auth/me");
-            startTransition(() => {
-                if (response.data?.success) {
-                    setUser(response.data.user)
-                } else {
-                    setUser(null);
-                }
-            })
-        } catch {
-            startTransition(() => {
-                setUser(null);
-            })
-        } finally {
-            startTransition(() => {
-                setLoading(false);
-            })
+    // FIXED: Instead of using useEffect + setState (which caused the render warning),
+    // we derive the user data dynamically during execution.
+    const user: User | null = session?.user
+        ? {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name || null,
+            // FIXED: Accessing custom field via type casting to safely bypass the standard schema check
+            role: ((session.user as any).role?.toUpperCase() as "CUSTOMER" | "PROVIDER" | "ADMIN") || "CUSTOMER",
         }
-    }
+        : null;
 
-    useEffect(() => {
-        refreshUser();
-    }, []);
+    // Legacy method stubs preserved to maintain backward compatibility
+    const login = () => { };
 
-    const login = (userData: User) => setUser(userData);
     const logout = async () => {
-        try {
-            await api.post("/auth/sign-out");
-        } finally {
-            setUser(null);
-        }
+        await authClient.signOut();
     };
+
+    const refreshUser = async () => {
+        return;
+    };
+
     return (
         <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
             {children}

@@ -44,13 +44,19 @@ export default function CustomerOrdersPage() {
         const loadOrders = async () => {
             try {
                 const res = await api.get("/orders");
-                if (res.data?.success || Array.isArray(res.data)) {
-                    // Adjust depending on whether backend returns data nested under a success key or as a raw array
-                    setOrders(res.data?.success ? res.data.orders : res.data);
+
+                if (Array.isArray(res.data)) {
+                    setOrders(res.data);
+                } else if (res.data?.orders && Array.isArray(res.data.orders)) {
+                    setOrders(res.data.orders);
+                } else if (res.data?.data && Array.isArray(res.data.data)) {
+                    setOrders(res.data.data);
                 } else {
-                    setError("Failed to resolve orders payload matrix.");
+                    setOrders([]);
+                    setError("Failed to resolve orders payload structure.");
                 }
             } catch (err: unknown) {
+                setOrders([]); // Fallback safety on network failure
                 setError(getErrorMessage(err, "Could not synchronize with transaction server."));
             } finally {
                 setLoading(false);

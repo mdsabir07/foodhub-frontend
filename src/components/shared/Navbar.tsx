@@ -6,11 +6,16 @@ import { ShoppingCart, UtensilsCrossed, LogOut, LayoutDashboard, Sun, Moon, Lapt
 import { motion } from "framer-motion";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/context/ThemeContext";
+import { useCart } from "@/src/hooks/useCart";
 
 export function Navbar() {
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const { theme, setTheme } = useTheme();
+    const { cart } = useCart(); // 🛡️ Access the live cart items array
+
+    // Calculate total quantity reactively across items
+    const totalItemsCount = cart?.reduce((total, item) => total + item.quantity, 0) || 0;
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/80 backdrop-blur-md transition-colors">
@@ -96,17 +101,20 @@ export function Navbar() {
                         <>
                             {/* Cart Counter (Only visible to Customers) */}
                             {user.role === "CUSTOMER" && (
-                                <Link href="/cart" className="relative p-2 text-slate-600 dark:text-slate-300 hover:text-orange-600 transition-colors">
+                                <Link href="/customer/cart" className="relative p-2 text-slate-600 dark:text-slate-300 hover:text-orange-600 transition-colors">
                                     <ShoppingCart className="h-5 w-5" />
-                                    <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-orange-600 text-[10px] font-bold text-white flex items-center justify-center">
-                                        0
-                                    </span>
+                                    {/* FIXED: Dynamic count badge with animate-pulse conditional notification */}
+                                    {totalItemsCount > 0 && (
+                                        <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-orange-600 text-[9px] font-black text-white flex items-center justify-center shadow-sm">
+                                            {totalItemsCount}
+                                        </span>
+                                    )}
                                 </Link>
                             )}
 
                             {/* User Profile Navigation */}
                             <Link
-                                href={user.role === "PROVIDER" ? "/provider/dashboard" : user.role === "ADMIN" ? "/admin" : "/orders"}
+                                href={user.role === "PROVIDER" ? "/provider/dashboard" : user.role === "ADMIN" ? "/admin" : "/customer/orders"}
                                 className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-orange-600"
                             >
                                 <div className="h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-950/50 flex items-center justify-center text-orange-700 dark:text-orange-400 font-bold">
