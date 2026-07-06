@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { api } from "@/src/lib/api";
 import { getErrorMessage } from "@/src/lib/error";
 import { ClipboardList, Clock, MapPin, XCircle, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useAppRouter } from "@/src/hooks/useAppRouter";
+import { useSession } from "@/src/lib/auth-client";
 
 interface OrderItem {
     mealId: string;
@@ -22,12 +24,23 @@ interface Order {
 }
 
 export default function CustomerOrdersPage() {
+    const router = useAppRouter();
+    const { data: session, isPending } = useSession();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [actionPending, setActionPending] = useState<string | null>(null);
 
+    // 🛡️ Simple Route Guard Effect
     useEffect(() => {
+        if (!isPending && !session) {
+            router.replace("/login");
+        }
+    }, [session, isPending, router]);
+
+    useEffect(() => {
+        if (!session) return;
+
         const loadOrders = async () => {
             try {
                 const res = await api.get("/orders");
@@ -45,7 +58,17 @@ export default function CustomerOrdersPage() {
         };
 
         void loadOrders();
-    }, []);
+    }, [session]);
+
+    // Simple loading check text
+    if (isPending) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+                <p className="text-xs font-bold text-slate-400 uppercase animate-pulse">Verifying credentials...</p>
+            </div>
+        )
+    }
+    if (!session) return null;
 
     // Handle order cancellation from the frontend
     const handleCancelOrder = async (orderId: string) => {
