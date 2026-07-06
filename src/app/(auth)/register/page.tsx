@@ -1,3 +1,5 @@
+"use client";
+
 import { useAppRouter } from "@/src/hooks/useAppRouter";
 import { authClient } from "@/src/lib/auth-client";
 import { getErrorMessage } from "@/src/lib/error";
