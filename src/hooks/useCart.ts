@@ -21,8 +21,7 @@ export function useCart() {
         return [];
     });
 
-    // 📤 Automatically backup the cart data whenever it mutates
-    // (Keep this effect, it's correct because it writes OUT to an external system!)
+    // Automatically backup the cart data whenever it mutates
     useEffect(() => {
         try {
             localStorage.setItem("foodhub_cart", JSON.stringify(cart));

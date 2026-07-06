@@ -2,7 +2,7 @@ import { api } from "@/src/lib/api";
 
 export interface BackendKitchen {
     id?: string;
-    name: string;
+    name?: string;
     slug?: string;
     createdAt?: string;
 }
@@ -13,12 +13,12 @@ export interface BackendMeal {
     title?: string;
     name?: string;
     price: number;
-    category: string;
+    category?: string | BackendKitchen | null;
     image?: string;
     rating?: number;
     time?: string;
-    kitchen?: BackendKitchen | string;
-    provider?: BackendKitchen | string;
+    kitchen?: BackendKitchen | string | null;
+    provider?: BackendKitchen | string | null;
 }
 
 export const mealService = {
