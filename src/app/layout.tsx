@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "../context/ThemeContext";
 import { AuthProvider } from "../context/AuthContext";
 import { Navbar } from "../components/shared/Navbar";
+import { Footer } from "../components/shared/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,13 +28,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 transition-colors duration-200`}>
+      <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 transition-colors duration-200`}>
         <ThemeProvider>
           <AuthProvider>
             <Navbar />
             <main className="min-h-[calc(100vh-4rem)]">
               {children}
             </main>
+            <Footer />
           </AuthProvider>
         </ThemeProvider>
       </body>
