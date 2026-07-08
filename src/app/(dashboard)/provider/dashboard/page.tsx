@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     DollarSign,
@@ -15,27 +15,33 @@ import {
     ToggleRight,
 } from "lucide-react";
 
-// Initial mock data for the kitchen's inventory
-const INITIAL_PRODUCTS = [
-    { id: "p1", name: "Truffle Glazed Burger", category: "Burgers", price: 16.50, ordersCount: 142, isAvailable: true },
-    { id: "p2", name: "Artisanal Pepperoni Pizza", category: "Pizza", price: 18.00, ordersCount: 98, isAvailable: true },
-    { id: "p3", name: "Velvet Chocolate Lava Cake", category: "Desserts", price: 8.50, ordersCount: 215, isAvailable: false },
-];
-
-// Initial mock data for active incoming kitchen tickets
-const INITIAL_ORDERS = [
-    { id: "ORD-9021", customer: "John Doe", items: "2x Truffle Glazed Burger", total: 33.00, status: "pending", time: "5 min ago" },
-    { id: "ORD-8944", customer: "Sarah Jenkins", items: "1x Artisanal Pepperoni Pizza, 1x Lava Cake", total: 26.50, status: "preparing", time: "14 min ago" },
-    { id: "ORD-8812", customer: "Alex Mercer", items: "3x Crunchy Avocado Roll", total: 36.00, status: "completed", time: "1 hr ago" },
-];
 
 export default function ProviderDashboard() {
-    const [products, setProducts] = useState(INITIAL_PRODUCTS);
-    const [orders, setOrders] = useState(INITIAL_ORDERS);
+    const [products, setProducts] = useState<{
+        id: string;
+        name: string;
+        category: string;
+        price: number;
+        ordersCount: number;
+        isAvailable: boolean;
+    }[]>([]);
+    const [orders, setOrders] = useState<{
+        id: string;
+        customer: string;
+        items: string;
+        total: number;
+        status: string;
+        time: string;
+    }[]>([]);
 
+    const [dbCategories, setDbCategories] = useState<{
+        id: string;
+        name: string;
+    }[]>([]);
     // Form modal state for adding a new dish
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newDish, setNewDish] = useState({ name: "", category: "Burgers", price: "" });
+    const [newDish, setNewDish] = useState({ name: "", categoryId: "", price: "", description: "" });
+    const [errorFeedback, setErrorFeedback] = useState<string | null>(null);
 
     // Toggle dish availability switch
     const toggleAvailability = (id: string) => {
@@ -47,23 +53,114 @@ export default function ProviderDashboard() {
         setOrders(prev => prev.map(o => o.id === id ? { ...o, status: nextStatus } : o));
     };
 
-    // Handle saving a brand new menu entry
-    const handleAddDish = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!newDish.name || !newDish.price) return;
+    // 📥 Step 2: Fetch Live Dashboard Data from your Backend
+    useEffect(() => {
+        const loadDashboardData = async () => {
+            try {
+                // 🔐 Better-Auth handles session cookies automatically via axios/fetch credentials.
+                const fetchOptions = {
+                    credentials: "include" as const, // Passes Better-Auth cookies safely to port 4000
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                };
 
-        const dishEntry = {
-            id: `p${products.length + 1}`,
-            name: newDish.name,
-            category: newDish.category,
-            price: parseFloat(newDish.price) || 0.00,
-            ordersCount: 0,
-            isAvailable: true
+                // --- FETCH SYSTEM CATEGORIES FOR THE MODAL SELECTOR ---
+                const catRes = await fetch("http://localhost:400/api/categories", fetchOptions);
+                const catJson = await catRes.json();
+                if (catJson.success && catJson.data.length > 0) {
+                    setDbCategories(catJson.data);
+                    // Automatically set the form's default category selection to the first database item's ID
+                    setNewDish(prev => ({ ...prev, categoryId: catJson.data[0].id }));
+                }
+
+                // 1. FETCH THE PROVIDER'S LISTED MEALS FROM POSTGRESQL
+                const mealsRes = await fetch("http://localhost:4000/api/meals", fetchOptions);
+                const mealsJson = await mealsRes.json();
+
+                if (mealsJson.success) {
+                    // Re-map the raw database fields to match your UI's expected product layout
+                    const liveMeals = mealsJson.data.map((item: any) => ({
+                        id: item.id,
+                        name: item.name,
+                        category: item.category?.name || "General",
+                        price: item.price,
+                        ordersCount: item._count?.orders || 0, // Relational counting via Prisma
+                        isAvailable: true
+                    }));
+                    setProducts(liveMeals);
+                }
+
+                // 2. FETCH ACTIVE INBOUND KITCHEN TICKETS FROM POSTGRESQL
+                const ordersRes = await fetch("http://localhost:4000/api/provider/orders", fetchOptions);
+                const ordersJson = await ordersRes.json();
+
+                if (ordersJson.success) {
+                    const liveOrders = ordersJson.data.map((ord: any) => ({
+                        id: ord.id.substring(0, 8).toUpperCase(), // Clean short string ID layout
+                        customer: ord.customer?.name || "App Customer",
+                        // Compile individual food details into a readable list string
+                        items: ord.items?.map((i: any) => `${i.quantity}x ${i.meal?.name}`).join(", ") || "Food Order",
+                        total: ord.totalAmount,
+                        status: ord.status, // "pending" | "preparing" | "completed"
+                        time: "Just now"
+                    }));
+                    setOrders(liveOrders);
+                }
+
+            } catch (error) {
+                console.error("❌ FRONTEND SYNC ERROR:", error);
+            }
         };
 
-        setProducts(prev => [dishEntry, ...prev]);
-        setNewDish({ name: "", category: "Burgers", price: "" });
-        setIsModalOpen(false);
+        loadDashboardData();
+    }, []);
+
+    // Handle saving a brand new menu entry
+    const handleAddDish = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newDish.name || !newDish.price || !newDish.categoryId) return;
+        setErrorFeedback(null); // Clear any old errors on resubmit
+
+        try {
+            const response = await fetch("http://localhost:4000/api/meals", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                // Credentials option can be included if required by your auth layout
+                body: JSON.stringify({
+                    name: newDish.name,
+                    description: newDish.description || "Freshly cooked gourmet dish.",
+                    price: newDish.price, // Handled flawlessly by our patched backend float converter!
+                    categoryId: newDish.categoryId,
+                    image: "" // Ready for our upcoming ImgBB upload integration!
+                }),
+            });
+
+            const json = await response.json();
+            if (json.success) {
+                // Find the name of the category from our local state list to display in the table row
+                const categoryName = dbCategories.find(c => c.id === json.data.categoryId)?.name || "General";
+                const dishEntry = {
+                    id: json.data.id,
+                    name: json.data.name,
+                    category: categoryName,
+                    price: json.data.price,
+                    ordersCount: 0,
+                    isAvailable: true
+                };
+                setProducts(prev => [dishEntry, ...prev]);
+                // Clear out form inputs and reset default category selector
+                setNewDish({ name: "", categoryId: dbCategories[0]?.id || "", price: "", description: "" });
+                setIsModalOpen(false); // Close the modal after successful submission
+            } else {
+                setErrorFeedback(json.error || "Failed to create meal record. Please check details.");
+            }
+        } catch (error: any) {
+            console.error("Network write exception:", error);
+            setErrorFeedback("Could not connect to the database server. Check port 4000.");
+        }
     };
 
     return (
@@ -286,8 +383,22 @@ export default function ProviderDashboard() {
                             >
                                 <div className="flex justify-between items-center mb-4">
                                     <h3 className="text-lg font-bold">List New Food Item</h3>
-                                    <button onClick={() => setIsModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"><XCircle className="h-5 w-5 text-slate-400" /></button>
+                                    <button onClick={() => { setIsModalOpen(false); setErrorFeedback(null); }} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"><XCircle className="h-5 w-5 text-slate-400" /></button>
                                 </div>
+
+                                <AnimatePresence>
+                                    {errorFeedback && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -1 }}
+                                            className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 flex items-center gap-2"
+                                        >
+                                            <XCircle className="h-4 w-4 shrink-0" />
+                                            <span>{errorFeedback}</span>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
 
                                 <form onSubmit={handleAddDish} className="space-y-4">
                                     <div>
@@ -306,16 +417,15 @@ export default function ProviderDashboard() {
                                         <div>
                                             <label className="text-xs font-bold text-slate-400 block mb-1">Category Group</label>
                                             <select
-                                                value={newDish.category}
-                                                onChange={e => setNewDish({ ...newDish, category: e.target.value })}
+                                                value={newDish.categoryId}
+                                                onChange={e => setNewDish({ ...newDish, categoryId: e.target.value })}
                                                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:border-orange-500 font-medium"
                                             >
-                                                <option>Burgers</option>
-                                                <option>Healthy</option>
-                                                <option>Pizza</option>
-                                                <option>Sushi</option>
-                                                <option>Desserts</option>
-                                                <option>Asian</option>
+                                                {dbCategories.map(cat => (
+                                                    <option key={cat.id} value={cat.id}>
+                                                        {cat.name}
+                                                    </option>
+                                                ))}
                                             </select>
                                         </div>
                                         <div>
@@ -351,9 +461,10 @@ export default function ProviderDashboard() {
                             </motion.div>
                         </div>
                     </>
-                )}
-            </AnimatePresence>
+                )
+                }
+            </AnimatePresence >
 
-        </div>
+        </div >
     );
 }
