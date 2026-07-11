@@ -43,7 +43,13 @@ export default function RegisterPage() {
 
         try {
             const { error: authError } = await authClient.signUp.email({
-                email, password, name
+                email,
+                password,
+                name,
+                // Better-Auth reads additional fields from the request body.
+                fetchOptions: {
+                    body: { role: role }
+                }
             });
 
             if (authError) {

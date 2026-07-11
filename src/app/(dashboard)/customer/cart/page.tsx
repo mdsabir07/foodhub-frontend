@@ -1,18 +1,70 @@
 "use client";
 
-import dynamic from "next/dynamic"; // 🚀 Import Next's dynamic tool
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Trash2, ArrowRight, ShoppingBag, Plus, Minus } from "lucide-react";
-import { useCart } from "@/src/hooks/useCart";
+import { useState } from "react"; // 🎒 Add useState for the button loading indicator
 
-// 1. Move your main cart interface logic into a separate internal component
+import { Trash2, ArrowRight, ShoppingBag, Plus, Minus, Loader2, MapPin } from "lucide-react";
+import { useCart } from "@/src/hooks/useCart";
+import { api } from "@/src/lib/api";
+import { useAppRouter } from "@/src/hooks/useAppRouter";
+
+// Separate your API helper logic safely inside the client component
 function CartContent() {
-    const { cart, addToCart, removeFromCart, clearItemRow } = useCart();
+    const { cart, addToCart, removeFromCart, clearItemRow, clearCart } = useCart();
+    const { refresh, navigate } = useAppRouter(); // 💡 FIX: Initialize client-side router hook instance
+
+    // ⏳ Track request runtime states
+    const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+    const [deliveryAddress, setDeliveryAddress] = useState("");
 
     // Calculate checkout totals safely
     const subtotal = cart?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
     const deliveryFee = subtotal > 0 ? 50 : 0;
     const total = subtotal + deliveryFee;
+
+    // 🚀 Handshake function to post order details to your Express backend
+    const handleCheckout = async () => {
+        if (!deliveryAddress.trim()) {
+            setCheckoutError("Please specify a delivery address before proceeding.");
+            return;
+        }
+        try {
+            setIsCheckingOut(true);
+            setCheckoutError(null);
+
+            // Format data payload structure for your orders schema mapping
+            const payload = {
+                items: cart.map(item => ({
+                    mealId: String(item.id),
+                    quantity: Number(item.quantity),
+                    price: parseFloat(Number(item.price).toFixed(2)) // 💡 FIX: Force exact 2-decimal floats
+                })),
+                subtotal: parseFloat(subtotal.toFixed(2)),         // 💡 FIX: Round off float anomalies
+                deliveryFee: parseFloat(deliveryFee.toFixed(2)),   // 💡 FIX: Round off float anomalies
+                totalAmount: parseFloat(total.toFixed(2)),         // 💡 FIX: Sends clean currency numbers over the wire
+                deliveryAddress: deliveryAddress.trim()
+            };
+
+            const response = await api.post("/orders", payload);
+
+            if (response.data) {
+                // Clear out local storage state on transactional success
+                clearCart();
+                // Force Next.js to discard cached layouts so the top cart icon count updates to 0 instantly
+                refresh()
+                // Safely route user to order board using Next.js framework router instead of window object mutation
+                navigate("/customer/orders");
+            }
+        } catch (err) {
+            console.error("Checkout transaction failure:", err);
+            setCheckoutError("Transaction could not be established. Please try again.");
+        } finally {
+            setIsCheckingOut(false);
+        }
+    };
 
     if (!cart || cart.length === 0) {
         return (
@@ -47,17 +99,17 @@ function CartContent() {
 
                             {/* Quantity Controls */}
                             <div className="flex items-center gap-2 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-1 bg-slate-50 dark:bg-slate-800">
-                                <button onClick={() => removeFromCart(item.id)} className="p-1 hover:text-orange-600 text-slate-500 transition-colors">
+                                <button onClick={() => removeFromCart(item.id)} className="p-1 hover:text-orange-600 text-slate-500 transition-colors cursor-pointer">
                                     <Minus className="h-4 w-4" />
                                 </button>
                                 <span className="font-bold text-sm px-2 text-slate-800 dark:text-slate-100">{item.quantity}</span>
-                                <button onClick={() => addToCart(item)} className="p-1 hover:text-orange-600 text-slate-500 transition-colors">
+                                <button onClick={() => addToCart(item)} className="p-1 hover:text-orange-600 text-slate-500 transition-colors cursor-pointer">
                                     <Plus className="h-4 w-4" />
                                 </button>
                             </div>
 
                             {/* Delete Button */}
-                            <button onClick={() => clearItemRow(item.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Remove item">
+                            <button onClick={() => clearItemRow(item.id)} className="p-2 text-slate-400 hover:text-red-500 transition-colors cursor-pointer" title="Remove item">
                                 <Trash2 className="h-5 w-5" />
                             </button>
                         </div>
@@ -67,6 +119,21 @@ function CartContent() {
                 {/* Bill Breakdown Summary Sidebar */}
                 <div className="bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 h-fit shadow-sm">
                     <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">Summary</h2>
+                    {/* Inject interactive address input area directly into summary details context block */}
+                    <div className="mb-5">
+                        <label htmlFor="" className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                            <MapPin className="h-3 w-3 text-orange-600" />
+                            <span>Delivery Destination</span>
+                        </label>
+                        <textarea
+                            rows={2}
+                            value={deliveryAddress}
+                            onChange={(e) => setDeliveryAddress(e.target.value)}
+                            placeholder="Type full street house address details..."
+                            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-orange-500 dark:focus:border-orange-500 resize-none transition-all"
+                        />
+                    </div>
+
                     <div className="space-y-3 text-sm border-b border-slate-200 dark:border-slate-800 pb-4">
                         <div className="flex justify-between text-slate-600 dark:text-slate-400">
                             <span>Subtotal</span>
@@ -82,9 +149,28 @@ function CartContent() {
                         <span className="text-orange-600">{total.toFixed(2)} TK</span>
                     </div>
 
-                    <button className="w-full flex items-center justify-center gap-2 bg-orange-600 text-white font-bold py-3 rounded-2xl hover:bg-orange-500 shadow-md transition-all">
-                        <span>Proceed to Checkout</span>
-                        <ArrowRight className="h-4 w-4" />
+                    {/* Error Notice Panel */}
+                    {checkoutError && (
+                        <p className="text-xs text-red-500 font-semibold mb-4 text-center">{checkoutError}</p>
+                    )}
+
+                    {/* 🔥 CONNECTED CHECKOUT BUTTON */}
+                    <button
+                        onClick={handleCheckout}
+                        disabled={isCheckingOut}
+                        className="w-full flex items-center justify-center gap-2 bg-orange-600 disabled:bg-orange-400 text-white font-bold py-3 rounded-2xl hover:bg-orange-500 shadow-md transition-all cursor-pointer"
+                    >
+                        {isCheckingOut ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Placing Order...</span>
+                            </>
+                        ) : (
+                            <>
+                                <span>Proceed to Checkout</span>
+                                <ArrowRight className="h-4 w-4" />
+                            </>
+                        )}
                     </button>
                 </div>
             </div>
@@ -92,8 +178,6 @@ function CartContent() {
     );
 }
 
-// 2. 🛡️ FIXED: Force Next.js to load this page only on the client side with SSR turned OFF.
-// This completely destroys the hydration bug and eliminates the need for state tracking effects!
 export default dynamic(() => Promise.resolve(CartContent), {
     ssr: false,
     loading: () => <div className="max-w-5xl mx-auto py-16 px-4 text-center text-slate-400">Synchronizing basket...</div>

@@ -9,12 +9,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const pathname = usePathname();
 
     const menuItems = [
-        { name: "Overview Insights", path: "/admin", icon: LayoutDashboard },
-        { name: "Manage Directory", path: "/admin/users", icon: Users },
+        // Updated path to point to our newly generated system dashboard (/admin/dashboard)
+        { name: "Manage Directory", path: "/admin/dashboard", icon: Users },
     ];
 
     return (
-        <ProtectedRoute allowedRoles={["Admin"]}>
+        <ProtectedRoute allowedRoles={["ADMIN"]}>
             <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row">
 
                 {/* 🎛️ SIDEBAR NAV PANEL */}
@@ -27,6 +27,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             </span>
                         </div>
 
+                        { }
                         <nav className="space-y-1">
                             {menuItems.map((item) => {
                                 const isActive = pathname === item.path;
@@ -35,8 +36,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                         key={item.path}
                                         href={item.path}
                                         className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${isActive
-                                                ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                                                : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                                            ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                                            : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
                                             }`}
                                     >
                                         <item.icon className="h-4 w-4" />

@@ -1,33 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Star, Clock, ShieldCheck, ShoppingBag, Flame } from "lucide-react";
+import { useState } from "react";
+import { useParams } from "next/navigation";
+import Image from "next/image"; // Import Next.js Image
+import { ArrowLeft, Star, Clock, ShoppingBag } from "lucide-react";
 import { useCart } from "@/src/hooks/useCart";
 import { CartDrawer } from "@/src/components/CartDrawer";
 import { OrderSuccessModal } from "@/src/components/OrderSuccessModal";
+import { useAppRouter } from "@/src/hooks/useAppRouter";
 
 export default function MealDetailsPage() {
-    const { id } = useParams();
-    const router = useRouter();
+    const params = useParams();
+    const { back } = useAppRouter();
     const { cart, addToCart, removeFromCart, clearItemRow } = useCart();
 
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [currentOrderId, setCurrentOrderId] = useState("");
 
-    // Simulated item lookup state matching backend schema specifications
+    // Safely extract and format the ID as a string
+    const id = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
+
     const meal = {
         id: id,
-        name: "Signature Premium Plate",
+        name: "Signature premium plate",
         provider: "Gourmet Artisan Kitchen",
         price: 24.50,
         rating: 4.9,
         time: "20-30 min",
         category: "Specialties",
-        image: "🍳",
+        image: "https://images.pexels.com/photos/6978186/pexels-photo-6978186.jpeg",
         description: "Vetted by our internal food safety board, this premium formulation brings fresh, farm-sourced local protein and organic hand-cut elements directly to your table."
-    };
+    }
+
+
+    if (!meal) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+                <p className="text-sm text-slate-400 font-bold animate-pulse">Loading culinary assets...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-24">
@@ -35,7 +48,7 @@ export default function MealDetailsPage() {
 
                 {/* Back navigation wire */}
                 <button
-                    onClick={() => router.back()}
+                    onClick={() => back()}
                     className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
                 >
                     <ArrowLeft className="h-4 w-4" /> Back to listings
@@ -44,9 +57,25 @@ export default function MealDetailsPage() {
                 {/* Core details layout card */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-8 shadow-xs">
 
-                    {/* Big visual graphic thumbnail element frame */}
-                    <div className="bg-slate-50 dark:bg-slate-950 aspect-square rounded-2xl flex items-center justify-center text-7xl select-none border border-slate-100 dark:border-slate-900">
-                        {meal.image}
+                    {/* 💡 Fixed: Big visual graphic thumbnail layout frame using next/image */}
+                    <div className="relative bg-slate-50 dark:bg-slate-950 aspect-square rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-900/40">
+                        {meal.image && !meal.image.startsWith("http") ? (
+                            // Fallback rendering fallback emoji logic if data row saves strings like "🍳"
+                            <div className="flex items-center justify-center h-full text-7xl select-none">
+                                {meal.image}
+                            </div>
+                        ) : meal.image ? (
+                            <Image
+                                src={meal.image}
+                                alt={meal.name}
+                                fill
+                                priority // Core Above-The-Fold layout asset gets loaded immediately
+                                sizes="(max-w-4xl) 50vw, 100vw"
+                                className="object-cover"
+                            />
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-7xl select-none">🍲</div>
+                        )}
                     </div>
 
                     <div className="flex flex-col justify-between space-y-6">

@@ -1,8 +1,11 @@
+// 📁 components/cartDrawer.tsx
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Minus, Plus, Trash2 } from "lucide-react";
 import { MealItem } from "@/src/components/MealCard";
+import { useRouter } from "next/navigation"; // 🚀 Import the Next.js router
+import Image from "next/image";
 
 interface CartItem extends MealItem {
     quantity: number;
@@ -15,7 +18,7 @@ interface CartDrawerProps {
     addToCart: (item: MealItem) => void;
     removeFromCart: (id: string) => void;
     clearItemRow: (id: string) => void;
-    onCheckoutSuccess: (generatedId: string) => void; // 🚀 Notifies parent to show success screen
+    onCheckoutSuccess: (generatedId: string) => void;
 }
 
 export function CartDrawer({
@@ -27,12 +30,13 @@ export function CartDrawer({
     clearItemRow,
     onCheckoutSuccess,
 }: CartDrawerProps) {
+    const router = useRouter(); // 🚀 Instantiate navigation handler
     const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const totalItemsInCart = cart.reduce((sum, item) => sum + item.quantity, 0);
 
     return (
         <>
-            {/* 🛒 FLOATING VIEW CART TOGGLE BUTTON */}
+            {/* FLOATING VIEW CART TOGGLE BUTTON */}
             {totalItemsInCart > 0 && !isOpen && (
                 <div className="fixed bottom-6 right-6 z-40">
                     <button
@@ -47,7 +51,7 @@ export function CartDrawer({
                 </div>
             )}
 
-            {/* 🛒 RIGHT SIDEBAR FLYOUT DRAWER OVERLAY */}
+            {/* RIGHT SIDEBAR FLYOUT DRAWER OVERLAY */}
             <AnimatePresence>
                 {isOpen && (
                     <>
@@ -86,12 +90,26 @@ export function CartDrawer({
                                             key={item.id}
                                             className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-900/60 p-3 rounded-xl"
                                         >
-                                            <span className="text-2xl">{item.image}</span>
+                                            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800">
+                                                {item.image && item.image.startsWith("http") ? (
+                                                    <Image
+                                                        src={item.image}
+                                                        alt={item.name}
+                                                        fill
+                                                        sizes="50px"
+                                                        className="object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="flex h-full w-full items-center justify-center text-2xl select-none">
+                                                        {item.image || "🍲"}
+                                                    </div>
+                                                )}
+                                            </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">
                                                     {item.name}
                                                 </h4>
-                                                <p className="text-xs text-slate-500">${item.price.toFixed(2)} each</p>
+                                                <p className="text-xs text-slate-500">{item.price.toFixed(2)} TK</p>
                                             </div>
                                             <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg p-1 shadow-xs">
                                                 <button
@@ -125,17 +143,16 @@ export function CartDrawer({
                                 <div className="p-4 border-t border-slate-100 dark:border-slate-900 bg-slate-50 dark:bg-slate-900/30 space-y-3">
                                     <div className="flex justify-between items-center font-bold text-slate-900 dark:text-white">
                                         <span>Total Amount:</span>
-                                        <span className="text-xl">${cartTotal.toFixed(2)}</span>
+                                        <span className="text-xl text-orange-600">{cartTotal.toFixed(2)} TK</span>
                                     </div>
+
+                                    {/* 🔄 FIXED BUTTON: Redirects seamlessly to the real database checkout pipeline */}
                                     <button
                                         onClick={() => {
-                                            const generatedId = `FH-${Math.random().toString(16).substring(2, 6).toUpperCase()}`;
                                             setIsOpen(false);
-                                            onCheckoutSuccess(generatedId);
-                                            // Clear items instantly
-                                            cart.forEach((item) => clearItemRow(item.id));
+                                            router.push("/customer/cart");
                                         }}
-                                        className="w-full py-3.5 bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-600/10 hover:bg-orange-700 hover:shadow-orange-600/20 active:scale-[0.99] transition-all cursor-pointer text-sm"
+                                        className="w-full py-3.5 bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-600/10 hover:bg-orange-700 hover:shadow-orange-600/20 active:scale-[0.99] transition-all cursor-pointer text-sm text-center"
                                     >
                                         Proceed to Secure Checkout
                                     </button>

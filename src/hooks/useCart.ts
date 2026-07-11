@@ -1,3 +1,4 @@
+// 📁 hooks/useCart.ts
 import { useState, useEffect } from "react";
 import { MealItem } from "@/src/components/MealCard";
 
@@ -5,58 +6,79 @@ export interface CartItem extends MealItem {
     quantity: number;
 }
 
-export function useCart() {
-    // Lazy Initializer: Runs exactly once before the initial component mount
-    const [cart, setCart] = useState<CartItem[]>(() => {
-        // Prevent crashes during Next.js server-side rendering builds
-        if (typeof window !== "undefined") {
-            try {
-                const savedCart = localStorage.getItem("foodhub_cart");
-                return savedCart ? JSON.parse(savedCart) : [];
-            } catch (error) {
-                console.error("Failed to recover saved basket items:", error);
-                return [];
-            }
-        }
-        return [];
-    });
+const CART_SYNC_EVENT = "foodhub_cart_updated";
 
-    // Automatically backup the cart data whenever it mutates
+export function useCart() {
+    // 🔄 FIX: Start with a clean empty array so Server and Client render match perfectly
+    const [cart, setCart] = useState<CartItem[]>([]);
+
+    // 🆕 Hydrate the cart from localStorage safely after the component mounts on the client
     useEffect(() => {
         try {
-            localStorage.setItem("foodhub_cart", JSON.stringify(cart));
-        } catch (error) {
-            console.error("Failed to backup basket session:", error);
-        }
-    }, [cart]);
-
-    // ➕ Action: Add item or step up quantity
-    const addToCart = (meal: MealItem) => {
-        setCart((prev) => {
-            const existing = prev.find((item) => item.id === meal.id);
-            if (existing) {
-                return prev.map((item) =>
-                    item.id === meal.id ? { ...item, quantity: item.quantity + 1 } : item
-                );
+            const savedCart = localStorage.getItem("foodhub_cart");
+            if (savedCart) {
+                setCart(JSON.parse(savedCart));
             }
-            return [...prev, { ...meal, quantity: 1 }];
-        });
+        } catch (error) {
+            console.error("Failed to recover saved basket items:", error);
+        }
+    }, []);
+
+    // LISTEN FOR CART MUTATIONS ACROSS OTHER COMPONENTS INSTANTLY
+    useEffect(() => {
+        const handleSync = () => {
+            try {
+                const savedCart = localStorage.getItem("foodhub_cart");
+                setCart(savedCart ? JSON.parse(savedCart) : []);
+            } catch (error) {
+                console.error("Failed to sync cart updates:", error);
+            }
+        };
+
+        window.addEventListener(CART_SYNC_EVENT, handleSync);
+        return () => window.removeEventListener(CART_SYNC_EVENT, handleSync);
+    }, []);
+
+    const updateAndBroadcast = (newCart: CartItem[]) => {
+        setCart(newCart);
+        if (typeof window !== "undefined") {
+            localStorage.setItem("foodhub_cart", JSON.stringify(newCart));
+            window.dispatchEvent(new Event(CART_SYNC_EVENT));
+        }
     };
 
-    // ➖ Action: Reduce quantity or remove item entirely
+    const addToCart = (meal: MealItem) => {
+        const existing = cart.find((item) => item.id === meal.id);
+        let updatedCart: CartItem[];
+
+        if (existing) {
+            updatedCart = cart.map((item) =>
+                item.id === meal.id ? { ...item, quantity: item.quantity + 1 } : item
+            );
+        } else {
+            updatedCart = [...cart, { ...meal, quantity: 1 }];
+        }
+        updateAndBroadcast(updatedCart);
+    };
+
     const removeFromCart = (mealId: string) => {
-        setCart((prev) =>
-            prev
-                .map((item) =>
-                    item.id === mealId ? { ...item, quantity: item.quantity - 1 } : item
-                )
-                .filter((item) => item.quantity > 0)
-        );
+        const updatedCart = cart
+            .map((item) =>
+                item.id === mealId ? { ...item, quantity: item.quantity - 1 } : item
+            )
+            .filter((item) => item.quantity > 0);
+
+        updateAndBroadcast(updatedCart);
     };
 
-    // Action: Wipe out a single item row instantly
     const clearItemRow = (mealId: string) => {
-        setCart((prev) => prev.filter((item) => item.id !== mealId));
+        const updatedCart = cart.filter((item) => item.id !== mealId);
+        updateAndBroadcast(updatedCart);
+    };
+
+    // Action: Completely wipe out the entire cart session after a checkout completion
+    const clearCart = () => {
+        updateAndBroadcast([]);
     };
 
     return {
@@ -64,5 +86,6 @@ export function useCart() {
         addToCart,
         removeFromCart,
         clearItemRow,
+        clearCart
     };
 }

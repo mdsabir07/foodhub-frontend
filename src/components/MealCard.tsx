@@ -1,6 +1,8 @@
 "use client";
 
 import { Clock, ShoppingBag, Star } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 
 export interface MealItem {
     id: string;
@@ -23,9 +25,25 @@ export default function MealCard({ meal, onAddToCart }: MealCardProps) {
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/60 p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
             <div>
                 {/* { 1. meal image / emoji} */}
-                <div className="text-4xl mb-3">{meal.image}</div>
+                <div className="relative w-full h-48 mb-3 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
+                    {meal.image && meal.image.startsWith("http") ? (
+                        <Image
+                            src={meal.image}
+                            alt={meal.name}
+                            fill // Tells Next.js to fill the parent container completely
+                            sizes="(max-w-7xl) 33vw, 100vw" // Helps Next.js choose the right size
+                            className="object-cover transition-transform duration-300 hover:scale-105"
+                        />
+                    ) : (
+                        <div className="flex items-center justify-center h-full text-4xl">
+                            {meal.image || "🍲" /* Fallback to a default emoji if no image is provided */}
+                        </div>
+                    )}
+                </div>
                 {/* 2. Meal name */}
-                <h3 className="font-bold text-lg text-slate-900 dark:text-white line-clamp-1">{meal.name}</h3>
+                <Link href={`/meals/${meal.id}`} className="hover:text-orange-600 transition-colors">
+                    <h3 className="font-bold text-lg text-slate-900 dark:text-white line-clamp-1">{meal.name}</h3>
+                </Link>
                 {/* 3. Provider name */}
                 <p className="text-xs text-slate-500 mt-1">{meal.provider}</p>
                 {/* 4. Details Row */}

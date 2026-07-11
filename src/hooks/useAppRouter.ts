@@ -22,6 +22,13 @@ export function useAppRouter() {
         });
     };
 
+    // Safe, non-blocking server components cache refresh wrapper
+    const refresh = () => {
+        startTransition(() => {
+            router.refresh();
+        });
+    };
+
     // Safe back button navigation
     const back = () => {
         startTransition(() => {
@@ -29,5 +36,5 @@ export function useAppRouter() {
         });
     };
 
-    return { navigate, replace, back, pathName, isPending }
+    return { navigate, replace, refresh, back, pathName, isPending }
 }

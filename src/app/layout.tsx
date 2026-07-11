@@ -5,6 +5,8 @@ import { ThemeProvider } from "../context/ThemeContext";
 import { AuthProvider } from "../context/AuthContext";
 import { Navbar } from "../components/shared/Navbar";
 import { Footer } from "../components/shared/Footer";
+import { Toaster } from "react-hot-toast";
+import { SuspensionInterceptor } from "../components/shared/SuspensionInterceptor";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,11 +33,22 @@ export default function RootLayout({
       <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 transition-colors duration-200`}>
         <ThemeProvider>
           <AuthProvider>
-            <Navbar />
-            <main className="min-h-[calc(100vh-4rem)]">
-              {children}
-            </main>
-            <Footer />
+            <SuspensionInterceptor>
+              {/* Place the Toaster here so it inherits theme styles and works on all subpages */}
+              <Toaster
+                position="top-center"
+                reverseOrder={false}
+                toastOptions={{
+                  // Optional: styling clean defaults that look fantastic in dark and light themes
+                  className: "dark:bg-slate-900 dark:text-slate-100 border dark:border-slate-800 text-xs font-bold rounded-2xl",
+                }}
+              />
+              <Navbar />
+              <main className="min-h-[calc(100vh-4rem)]">
+                {children}
+              </main>
+              <Footer />
+            </SuspensionInterceptor>
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -4,37 +4,60 @@ import { useState, useEffect } from "react";
 import { api } from "@/src/lib/api";
 import { getErrorMessage } from "@/src/lib/error";
 import { ChefHat, CookingPot, Truck, CheckCircle, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { useAppRouter } from "@/src/hooks/useAppRouter";
+import { useSession } from "@/src/lib/auth-client";
 
 interface OrderItem {
+    id?: string;
+    _id?: string;
     mealId: string;
-    name: string;
     quantity: number;
     price: number;
+    meal?: {
+        name: string;
+    };
 }
 
 interface Order {
-    _id: string;
-    items: OrderItem[];
+    id?: string;
+    _id?: string;
+    orderItems?: OrderItem[];
+    items?: OrderItem[];
     totalAmount: number;
     deliveryAddress: string;
-    contactPhone: string;
     status: "PLACED" | "PREPARING" | "READY" | "DELIVERED" | "CANCELLED";
     createdAt: string;
 }
 
 export default function ProviderOrdersPage() {
+    const router = useAppRouter();
+    const { data: session, isPending } = useSession();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+    useEffect(() => {
+        if (!isPending && !session) {
+            router.replace("/login");
+        }
+    }, [session, isPending, router]);
+
     const fetchProviderOrders = async (active = true) => {
         setError("");
         try {
-            const res = await api.get("/orders");
-            const data = res.data?.success ? res.data.orders : res.data;
-            if (Array.isArray(data) && active) {
-                setOrders(data);
+            const res = await api.get("/provider/orders");
+            console.log("provider orders response", res.data);
+
+            if (Array.isArray(res.data)) {
+                setOrders(res.data);
+            } else if (res.data?.orders && Array.isArray(res.data.orders)) {
+                setOrders(res.data.orders);
+            } else if (res.data?.data && Array.isArray(res.data.data)) {
+                setOrders(res.data.data);
+            } else {
+                setOrders([]);
+                setError("Provider API returned an unexpected payload structure.");
             }
         } catch (err: unknown) {
             if (active) {
@@ -48,25 +71,29 @@ export default function ProviderOrdersPage() {
     };
 
     useEffect(() => {
+        if (!session) return;
+
         let active = true;
 
-        const timer = setTimeout(() => {
-            fetchProviderOrders(active);
-        }, 0);
+        const initFetch = async () => {
+            if (active) {
+                await fetchProviderOrders(active);
+            }
+        };
+
+        void initFetch();
 
         return () => {
             active = false;
-            clearTimeout(timer);
         };
-    }, []);
+    }, [session]);
 
     const handleUpdateStatus = async (orderId: string, nextStatus: Order["status"]) => {
         setUpdatingId(orderId);
         try {
             const res = await api.patch(`/orders/${orderId}/status`, { status: nextStatus });
             if (res.status === 200 || res.data?.success) {
-                // Update local state arrays seamlessly
-                setOrders(prev => prev.map(o => o._id === orderId ? { ...o, status: nextStatus } : o));
+                setOrders(prev => prev.map(o => (o.id === orderId || o._id === orderId) ? { ...o, status: nextStatus } : o));
             }
         } catch (err: unknown) {
             alert(getErrorMessage(err, "Failed to update target status marker."));
@@ -88,6 +115,16 @@ export default function ProviderOrdersPage() {
         }
     };
 
+    if (isPending) {
+        return (
+            <div className="min-h-[60vh] flex items-center justify-center gap-2 text-slate-400 text-xs">
+                <Loader2 className="h-4 w-4 animate-spin text-orange-600" /> Verifying provider access...
+            </div>
+        );
+    }
+
+    if (!session) return null;
+
     if (loading) {
         return (
             <div className="min-h-[60vh] flex items-center justify-center gap-2 text-slate-400 text-xs">
@@ -106,7 +143,7 @@ export default function ProviderOrdersPage() {
                     <p className="text-xs text-slate-400 mt-0.5">Fulfill, process, and update states for customer ticket entries.</p>
                 </div>
                 <button
-                    onClick={fetchProviderOrders}
+                    onClick={() => fetchProviderOrders(true)}
                     className="p-2 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer text-slate-600 dark:text-slate-300"
                     title="Refresh Queue"
                 >
@@ -127,16 +164,19 @@ export default function ProviderOrdersPage() {
             ) : (
                 <div className="grid grid-cols-1 gap-4">
                     {orders.map((order) => {
+                        const targetId = (order.id || order._id || "").toString();
+                        const trackingId = targetId.slice(-8).toUpperCase();
                         const action = getNextActionProps(order.status);
                         const ActionIcon = action?.icon;
+                        const checkoutItems = order.orderItems || order.items || [];
 
                         return (
-                            <div key={order._id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div key={targetId} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
 
                                 {/* DETAILS GROUP */}
                                 <div className="space-y-2 max-w-xl w-full">
                                     <div className="flex items-center gap-2.5 flex-wrap">
-                                        <span className="font-mono text-xs font-black text-slate-400">TICKET #{order._id.slice(-8).toUpperCase()}</span>
+                                        <span className="font-mono text-xs font-black text-slate-400">TICKET #{trackingId}</span>
                                         <span className={`text-[9px] font-black tracking-wider px-2 py-0.5 rounded border uppercase ${order.status === "PLACED" ? "bg-blue-500/10 text-blue-600 border-blue-500/20" :
                                             order.status === "PREPARING" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
                                                 order.status === "READY" ? "bg-purple-500/10 text-purple-600 border-purple-500/20" :
@@ -148,15 +188,15 @@ export default function ProviderOrdersPage() {
                                     </div>
 
                                     <div className="text-xs space-y-0.5 text-slate-800 dark:text-slate-200 font-semibold">
-                                        {order.items.map((item, idx) => (
-                                            <p key={idx}>
-                                                • {item.name} <span className="text-slate-400 font-medium">× {item.quantity}</span>
+                                        {checkoutItems.map((item, idx) => (
+                                            <p key={item.id || item._id || idx}>
+                                                • {item.meal?.name || "Delicious Meal"} <span className="text-slate-400 font-medium">× {item.quantity}</span>
                                             </p>
                                         ))}
                                     </div>
 
                                     <p className="text-[11px] text-slate-400 font-medium truncate">
-                                        <span className="font-bold text-slate-500">Destination:</span> {order.deliveryAddress} | <span className="font-bold text-slate-500">Phone:</span> {order.contactPhone}
+                                        <span className="font-bold text-slate-500">Destination:</span> {order.deliveryAddress}
                                     </p>
                                 </div>
 
@@ -164,17 +204,17 @@ export default function ProviderOrdersPage() {
                                 <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 dark:border-slate-800 shrink-0">
                                     <div className="text-left md:text-right">
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Revenue</p>
-                                        <p className="text-sm font-black text-slate-950 dark:text-white font-mono">${order.totalAmount.toFixed(2)}</p>
+                                        <p className="text-sm font-black text-slate-950 dark:text-white font-mono">${order.totalAmount ? Number(order.totalAmount).toFixed(2) : "0.00"}</p>
                                     </div>
 
                                     <div className="w-40 flex justify-end">
-                                        {updatingId === order._id ? (
+                                        {updatingId === targetId ? (
                                             <div className="h-9 flex items-center justify-center text-slate-400 text-xs gap-1.5">
                                                 <Loader2 className="h-3.5 w-3.5 animate-spin text-orange-600" /> Syncing...
                                             </div>
                                         ) : action ? (
                                             <button
-                                                onClick={() => handleUpdateStatus(order._id, action.next)}
+                                                onClick={() => handleUpdateStatus(targetId, action.next)}
                                                 className={`w-full py-2 px-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${action.color}`}
                                             >
                                                 {ActionIcon && <ActionIcon className="h-3.5 w-3.5" />} {action.label}

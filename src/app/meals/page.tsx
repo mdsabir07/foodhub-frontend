@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, SlidersHorizontal, Utensils, Loader2 } from "lucide-react";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Search, SlidersHorizontal, Utensils, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { mealService, BackendMeal } from "@/src/services/mealService";
 
 // Shared modular components
@@ -12,7 +13,10 @@ import { OrderSuccessModal } from "@/src/components/OrderSuccessModal";
 
 type SortOption = "default" | "price-low" | "price-high" | "rating";
 
-export default function MealsPage() {
+function MealsPageContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
     // 🛒 Core basket engine hook
     const { cart, addToCart, removeFromCart, clearItemRow } = useCart();
 
@@ -60,7 +64,12 @@ export default function MealsPage() {
                     }
                 }
 
-                const normalizedData = rawMealsArray.map((item: BackendMeal): MealItem => {
+                // 💡 FIX: Filter out any meals that are hidden or soft-deleted (isAvailable === false)
+                const activeRawMeals = rawMealsArray.filter(
+                    (item: any) => item.isAvailable !== false && item.isDeleted !== true
+                );
+
+                const normalizedData = activeRawMeals.map((item: BackendMeal): MealItem => {
                     let providerName = "Gourmet Bistro";
                     let categoryName = "General";
 
@@ -106,6 +115,15 @@ export default function MealsPage() {
     // ⚡ 3. Derived State: Compile list of unique category tags on the fly
     const categories = ["All", ...Array.from(new Set(meals.map((m) => m.category).filter(Boolean)))];
 
+    // Reset current page when user selects a new category or searches
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("page")) {
+            params.delete("page");
+            router.push(`?${params.toString()}`);
+        }
+    }, [selectedCategory, debouncedSearchQuery, router]);
+
     // ⚡ 4. Frontend Local Processing (Filters & Sorting fallback)
     const filteredAndSortedMeals = [...meals]
         .filter((meal) => {
@@ -118,6 +136,23 @@ export default function MealsPage() {
             if (sortBy === "rating") return b.rating - a.rating;
             return 0;
         });
+
+    // ⚡ 5. Client-Side Pagination Layout Calculations
+    const currentPage = Number(searchParams.get("page")) || 1;
+    const itemsPerPage = 6; // 💡 Renders a beautifully balanced grid sequence
+    const totalItems = filteredAndSortedMeals.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedMeals = filteredAndSortedMeals.slice(startIndex, startIndex + itemsPerPage);
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            const params = new URLSearchParams(searchParams.toString());
+            params.set("page", newPage.toString());
+            router.push(`?${params.toString()}`);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300 pb-24">
@@ -188,22 +223,60 @@ export default function MealsPage() {
                         <Loader2 className="h-8 w-8 text-orange-600 animate-spin" />
                         <p className="text-sm text-slate-400 font-medium">Sourcing fresh dishes from local kitchens...</p>
                     </div>
-                ) : filteredAndSortedMeals.length === 0 ? (
+                ) : paginatedMeals.length === 0 ? (
                     <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 p-8 max-w-md mx-auto">
                         <Utensils className="h-10 w-10 text-slate-300 mx-auto mb-3" />
                         <h3 className="font-bold text-lg text-slate-800 dark:text-white">No items found</h3>
                         <p className="text-sm text-slate-400 mt-1">We couldn't find matching menu options. Try adjusting your filter tags or search keyword!</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredAndSortedMeals.map((meal) => (
-                            <MealCard
-                                key={meal.id}
-                                meal={meal}
-                                onAddToCart={addToCart}
-                            />
-                        ))}
-                    </div>
+                    <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {paginatedMeals.map((meal) => (
+                                <MealCard
+                                    key={meal.id}
+                                    meal={meal}
+                                    onAddToCart={addToCart}
+                                />
+                            ))}
+                        </div>
+
+                        {/* 🛠️ NAVIGATION CONTROLS PANEL */}
+                        {totalPages > 1 && (
+                            <div className="mt-12 flex items-center justify-center gap-2">
+                                <button
+                                    onClick={() => handlePageChange(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                                    aria-label="Previous Page"
+                                >
+                                    <ChevronLeft className="h-5 w-5" />
+                                </button>
+
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                    <button
+                                        key={page}
+                                        onClick={() => handlePageChange(page)}
+                                        className={`px-4 py-2 text-sm font-bold rounded-xl transition-all cursor-pointer border ${currentPage === page
+                                            ? "bg-orange-600 text-white border-orange-600 shadow-md shadow-orange-600/10"
+                                            : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                            }`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+
+                                <button
+                                    onClick={() => handlePageChange(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                                    aria-label="Next Page"
+                                >
+                                    <ChevronRight className="h-5 w-5" />
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
@@ -227,5 +300,20 @@ export default function MealsPage() {
                 onClose={() => setShowSuccess(false)}
             />
         </div>
+    );
+}
+
+export default function MealsPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="flex flex-col items-center justify-center min-h-screen gap-3 bg-slate-50 dark:bg-slate-950">
+                    <Loader2 className="h-8 w-8 text-orange-600 animate-spin" />
+                    <p className="text-sm text-slate-400 font-medium">Opening marketplace catalog...</p>
+                </div>
+            }
+        >
+            <MealsPageContent />
+        </Suspense>
     );
 }
