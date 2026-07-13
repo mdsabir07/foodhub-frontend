@@ -138,7 +138,7 @@ export default function CustomerProfile() {
                     </div>
                     <div>
                         <h3 className="font-bold text-sm text-slate-900 dark:text-white">{session.user.name || "App Customer"}</h3>
-                        <p className="text-xs text-slate-400 font-mono">Role Status: {session.user.role || "CUSTOMER"} Tier</p>
+                        <p className="text-xs text-slate-400 font-mono">Role Status: {(session.user as any).role || "CUSTOMER"} Tier</p>
                     </div>
                 </div>
 
