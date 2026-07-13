@@ -337,10 +337,10 @@ export default function AddDishModal({
 
                                         {/* Editable Input Body Area */}
                                         <div
-                                            contentEditable
+                                            contentEditable={true}
                                             onInput={(e) => setNewDish({ ...newDish, description: e.currentTarget.innerHTML })}
                                             className="min-h-[90px] p-3 text-sm focus:outline-none bg-transparent prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 empty:before:content-[attr(placeholder)] empty:before:text-slate-400 empty:before:pointer-events-none"
-                                            placeholder="Describe the flavors, ingredients, or allergens..."
+                                            {...{ placeholder: "Describe the flavors, ingredients, or allergens..." }}
                                         />
                                     </div>
                                 </div>
