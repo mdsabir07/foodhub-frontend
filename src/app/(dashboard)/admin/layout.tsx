@@ -9,8 +9,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const pathname = usePathname();
 
     const menuItems = [
-        // Updated path to point to our newly generated system dashboard (/admin/dashboard)
-        { name: "Manage Directory", path: "/admin/dashboard", icon: Users },
+        { name: "Overview Insights", path: "/admin", icon: LayoutDashboard },
+        { name: "Manage Directory", path: "/admin/users", icon: Users },
     ];
 
     return (
@@ -27,7 +27,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             </span>
                         </div>
 
-                        { }
                         <nav className="space-y-1">
                             {menuItems.map((item) => {
                                 const isActive = pathname === item.path;

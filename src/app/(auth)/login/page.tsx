@@ -1,103 +1,112 @@
 "use client";
 
-import React, { useState } from "react";
-import { useAppRouter } from "@/src/hooks/useAppRouter";
-import { authClient } from "@/src/lib/auth-client";
-import { Mail, Lock, AlertCircle, Loader2, KeyRound } from "lucide-react";
+import { useState } from "react";
 import Link from "next/link";
-import { getErrorMessage } from "@/src/lib/error";
+import { authClient } from "@/src/lib/auth-client"; // Adjust based on your Better-Auth client path
+import { toast } from "react-hot-toast";
+import { Loader2, Mail, Lock, Shield } from "lucide-react";
+import { useAppRouter } from "@/src/hooks/useAppRouter";
 
 export default function LoginPage() {
-    const router = useAppRouter();
-
-    // Form States
+    const { replace } = useAppRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    // UI Feedback States
-    const [error, setError] = useState("");
-    const [pending, setPending] = useState(false);
-
-    const handleLoginSubmit = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
-        setPending(true);
+
+        if (!email || !password) {
+            toast.error("Please fill in all credentials.");
+            return;
+        }
+
+        setLoading(true);
 
         try {
-            // REFACTORED: Authenticating user through Better Auth client mapping channel
-            const { data, error: authError } = await authClient.signIn.email({
+            // 🔐 Better-Auth Sign-In Transaction
+            // Note: Omitting callbackURL ensures no automatic redirects are triggered,
+            // allowing our Next.js client router to handle dynamic role routing!
+            const { data, error } = await authClient.signIn.email({
                 email,
                 password,
             });
 
-            if (authError) {
-                setError(authError.message || "Invalid email or password configuration.");
+            if (error) {
+                toast.error(error.message || "Invalid email or password.");
+                setLoading(false);
                 return;
             }
 
-            // Route dynamically based on user role parameter inside the session data payload
-            const user = data?.user as { role?: string } | undefined;
-            const userRole = user?.role?.toUpperCase();
+            // Cast dynamic user schema values safely to prevent compilation errors
+            const loggedUser = data?.user as any;
 
-            if (userRole === "PROVIDER") {
-                router.replace("/provider/orders");
-            } else {
-                router.replace("/customer/orders");
+            if (loggedUser) {
+                toast.success(`Welcome back, ${loggedUser.name || "User"}!`);
+
+                const userRole = loggedUser.role; // "ADMIN" | "PROVIDER" | "CUSTOMER"
+
+                if (userRole === "ADMIN") {
+                    replace("/admin");
+                } else if (userRole === "PROVIDER") {
+                    replace("/provider/dashboard");
+                } else {
+                    replace("/meals");
+                }
             }
-
-        } catch (err: unknown) {
-            setError(getErrorMessage(err, "A critical system authentication pipeline timeout occurred."));
+        } catch (err: any) {
+            console.error("❌ LOGIN ERROR:", err);
+            toast.error("Something went wrong. Please check your connection and try again.");
         } finally {
-            setPending(false);
+            setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 w-full max-w-md space-y-6 shadow-sm">
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4 transition-colors duration-200">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl p-8 space-y-6">
 
-                <div className="space-y-1">
-                    <h2 className="text-2xl font-black text-slate-950 dark:text-white tracking-tight flex items-center gap-2">
-                        <KeyRound className="h-6 w-6 text-orange-600" /> Secure Sign In
-                    </h2>
-                    <p className="text-xs text-slate-400">Welcome back! Authenticate to access your FoodHub terminal.</p>
+                {/* Header branding */}
+                <div className="text-center space-y-2">
+                    <h1 className="text-3xl font-black tracking-tight text-slate-950 dark:text-white">
+                        FoodHub<span className="text-orange-600">.</span>
+                    </h1>
+                    <p className="text-sm text-slate-400 font-medium">
+                        Log in to access your culinary dashboard
+                    </p>
                 </div>
 
-                {error && (
-                    <div className="flex items-center gap-2 p-3 bg-red-500/10 text-red-600 rounded-xl text-xs font-semibold">
-                        <AlertCircle className="h-4 w-4 shrink-0" /> <span>{error}</span>
-                    </div>
-                )}
-
-                <form onSubmit={handleLoginSubmit} className="space-y-4">
-                    {/* EMAIL INPUT */}
+                {/* Main login form */}
+                <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Registered Email</label>
+                        <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Email Address</label>
                         <div className="relative">
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                             <input
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                disabled={pending}
-                                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm rounded-xl outline-none text-slate-900 dark:text-slate-100"
-                                placeholder="name@domain.com"
+                                className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-semibold focus:outline-none focus:border-orange-500 transition-colors"
+                                placeholder="name@example.com"
                                 required
                             />
                         </div>
                     </div>
 
-                    {/* PASSWORD INPUT */}
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Account Password</label>
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Password</label>
+                            <Link href="/forgot-password" className="text-xs font-bold text-orange-600 hover:underline">
+                                Forgot password?
+                            </Link>
+                        </div>
                         <div className="relative">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                             <input
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                disabled={pending}
-                                className="w-full pl-11 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-sm rounded-xl outline-none text-slate-900 dark:text-slate-100"
+                                className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-semibold focus:outline-none focus:border-orange-500 transition-colors"
                                 placeholder="••••••••"
                                 required
                             />
@@ -106,22 +115,39 @@ export default function LoginPage() {
 
                     <button
                         type="submit"
-                        disabled={pending || !email || !password}
-                        className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-400 font-bold text-xs rounded-xl shadow-md transition-all uppercase tracking-wider mt-2 flex items-center justify-center gap-2 cursor-pointer"
+                        disabled={loading}
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-500 transition-all shadow-lg shadow-orange-600/15 disabled:opacity-50 cursor-pointer"
                     >
-                        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Access Account Console"}
+                        {loading ? (
+                            <>
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                                <span>Signing in...</span>
+                            </>
+                        ) : (
+                            <span>Sign In</span>
+                        )}
                     </button>
                 </form>
 
-                <div className="text-center pt-4 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-500">
-                    <span>New to the platform? </span>
-                    <Link
-                        href="/register"
-                        className="text-orange-600 hover:underline transition-all cursor-pointer font-bold"
-                    >
-                        Create Account
+                {/* Footer redirection helper */}
+                <div className="text-center text-xs font-semibold text-slate-400">
+                    Don't have an account?{" "}
+                    <Link href="/register" className="text-orange-600 hover:underline">
+                        Create one now
                     </Link>
                 </div>
+
+                {/* Credentials reminder block for testing */}
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-2 text-[11px] text-slate-400 font-medium">
+                    <p className="font-extrabold uppercase tracking-wider text-slate-500">Fast-Track Test Credentials</p>
+                    <div className="grid grid-cols-1 gap-1.5 font-mono">
+                        <div className="flex items-center gap-1">
+                            <Shield className="h-3 w-3 text-red-500 shrink-0" />
+                            <span>Admin: admin@sabiha.com / AdminPass123!</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     );
