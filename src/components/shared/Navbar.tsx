@@ -63,9 +63,9 @@ export function Navbar() {
             <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
 
                 {/* Logo Branding */}
-                <Link href="/" className="flex items-center gap-2 text-xl font-bold text-orange-600 select-none">
-                    <UtensilsCrossed className="h-6 w-6" />
-                    <span>FoodHub</span>
+                <Link href="/" className="flex items-center gap-2 text-xl select-none">
+                    <UtensilsCrossed className="h-6 w-6 text-orange-600" />
+                    <span className="font-black tracking-tighter text-slate-950 dark:text-white">Dish<span className="text-orange-600">Market</span></span>
                 </Link>
 
                 {/* Browse Meals (Shared Public Link) */}
