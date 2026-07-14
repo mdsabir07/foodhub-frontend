@@ -39,23 +39,23 @@ export default function LoginPage() {
             }
 
             // Cast dynamic user schema values safely to prevent compilation errors
-            const loggedUser = data?.user as any;
+            const loggedUser = data?.user as Record<string, unknown>;
 
             if (loggedUser) {
-                toast.success(`Welcome back, ${loggedUser.name || "User"}!`);
 
-                // Convert to lowercase to perfectly match "admin", "provider", or "customer" safely
-                const userRole = loggedUser.role?.toLowerCase();
+                const userRole = typeof loggedUser.role === "string" ? loggedUser.role.toLowerCase().trim() : "";
+                const userName = (loggedUser.name as string) || "User";
+                toast.success(`Welcome back, ${userName}!`);
 
                 if (userRole === "ADMIN") {
-                    replace("/admin");
+                    window.location.href = "/admin";
                 } else if (userRole === "PROVIDER") {
-                    replace("/provider/dashboard");
+                    window.location.href = "/provider/dashboard";
                 } else {
-                    replace("/meals");
+                    window.location.href = "/meals";
                 }
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("❌ LOGIN ERROR:", err);
             toast.error("Something went wrong. Please check your connection and try again.");
         } finally {
