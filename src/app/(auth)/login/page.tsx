@@ -22,9 +22,7 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            // 🔐 Better-Auth Sign-In Transaction
-            // Note: Omitting callbackURL ensures no automatic redirects are triggered,
-            // allowing our Next.js client router to handle dynamic role routing!
+            // 🔐 1. Execute Auth Sign-in
             const { data, error } = await authClient.signIn.email({
                 email,
                 password,
@@ -36,31 +34,36 @@ export default function LoginPage() {
                 return;
             }
 
-            // Cast dynamic user schema values safely to prevent compilation errors
+            // 🔍 2. Debug Log: Let's check exactly what the backend returned
+            console.log("Better Auth Response Data User:", data?.user);
+
+            // ⚡ 3. Force an immediate session verification update
+            const sessionCheck = await authClient.getSession();
+            console.log("Immediate Post-Login Session Check:", sessionCheck);
+
             const loggedUser = data?.user as Record<string, unknown>;
 
             if (loggedUser) {
-                // Option B: Matches the exact uppercase casing from your Prisma database enum
                 const userRole = typeof loggedUser.role === "string" ? loggedUser.role.trim() : "";
                 const userName = (loggedUser.name as string) || "User";
 
                 toast.success(`Welcome back, ${userName}!`);
 
-                // 💡 Gives the browser 150ms to successfully write the cross-domain session cookie
-                // before the page redirects, preventing the "logged out on arrival" issue.
+                // 🔄 4. Completely clear Next.js route caches and redirect hard
                 setTimeout(() => {
-                    if (userRole === "ADMIN") {
-                        window.location.href = "/admin";
-                    } else if (userRole === "PROVIDER") {
-                        window.location.href = "/provider/dashboard";
-                    } else {
-                        window.location.href = "/meals";
-                    }
-                }, 150);
+                    let targetPath = "/meals";
+                    if (userRole === "ADMIN") targetPath = "/admin";
+                    if (userRole === "PROVIDER") targetPath = "/provider/dashboard";
+
+                    // Force the browser to clear layout memory and navigate cleanly
+                    window.location.replace(targetPath);
+                }, 200);
+            } else {
+                toast.error("Login succeeded, but no user record was returned.");
             }
         } catch (err: unknown) {
-            console.error("❌ LOGIN ERROR:", err);
-            toast.error("Something went wrong. Please check your connection and try again.");
+            console.error("❌ CRITICAL LOGIN EXCEPTION:", err);
+            toast.error("Something went wrong. Check browser console.");
         } finally {
             setLoading(false);
         }
