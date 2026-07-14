@@ -21,12 +21,20 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
     useEffect(() => {
         if (!loading) {
-            // 1. Unauthenticated Redirect
+            // Avoid redirecting too aggressively on the first session read.
+            // On some live deployments the first session fetch can briefly return null.
+            // If session becomes available moments later, we prevent a "login loop".
             if (!user) {
-                navigate("/login");
+                // Use latest closure-stable refs could be better, but keep it simple:
+                // capture current loading->null moment and redirect after a grace period.
+                const t = setTimeout(() => {
+                    navigate("/login");
+                }, 300);
+                return () => clearTimeout(t);
             }
-            // 2. Role Mismatch Redirect (only if they aren't suspended)
-            else if (user && !isSuspended && allowedRoles && !allowedRoles.includes(user.role)) {
+
+            // Role Mismatch Redirect (only if they aren't suspended)
+            if (user && !isSuspended && allowedRoles && !allowedRoles.includes(user.role)) {
                 navigate("/meals");
             }
         }
