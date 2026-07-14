@@ -9,7 +9,9 @@ export interface AdminUser {
 }
 
 class AdminService {
-    private readonly baseUrl = "http://localhost:4000/api/admin";
+    private readonly baseUrl = process.env.NEXT_PUBLIC_API_URL
+        ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")}/api/admin`
+        : "http://localhost:4000/api/admin";
 
     // Standard headers for credential/cookie mapping
     private getRequestOptions(method: string, body?: any): RequestInit {
