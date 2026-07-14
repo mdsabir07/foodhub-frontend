@@ -11,7 +11,7 @@ export function Footer() {
                     <Link href="/" className="flex items-center gap-1.5">
                         <Utensils className="h-5 w-5 text-orange-600" />
                         <span className="font-black text-lg tracking-tighter text-slate-950 dark:text-white">
-                            Food<span className="text-orange-600">Hub</span>
+                            Dish<span className="text-orange-600">Market</span>
                         </span>
                     </Link>
                     <p className="text-xs text-slate-400 max-w-xs">
