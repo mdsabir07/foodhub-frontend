@@ -24,15 +24,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 🛡️ Read reactive session state directly from the hook wrapper
     const { data: session, isPending: loading } = authClient.useSession();
 
-    // FIXED: Instead of using useEffect + setState (which caused the render warning),
     // we derive the user data dynamically during execution.
     const user: User | null = session?.user
         ? {
             id: session.user.id,
             email: session.user.email,
             name: session.user.name || null,
-            // FIXED: Accessing custom field via type casting to safely bypass the standard schema check
-            role: ((session.user as any).role?.toUpperCase() as "CUSTOMER" | "PROVIDER" | "ADMIN") || "CUSTOMER",
+            // ✅ Safely type-cast to an object containing role to satisfy ESLint
+            role: ((session.user as {role?:string}).role?.toUpperCase() as "CUSTOMER" | "PROVIDER" | "ADMIN") || "CUSTOMER",
         }
         : null;
 
