@@ -21,7 +21,7 @@ export default function ProviderProfilePage() {
     const vendor = {
         name: "Gourmet Artisan Kitchen",
         rating: 4.8,
-        address: "FoodHub Hub Cluster Alpha, Sector 4",
+        address: "DishMarket Hub Cluster Alpha, Sector 4",
         bio: "Specializing in organic local farm integrations and slow-cooked protein masterpieces. Verified platform delivery merchant."
     };
 

@@ -70,7 +70,7 @@ export default function LoginPage() {
                 {/* Header branding */}
                 <div className="text-center space-y-2">
                     <h1 className="text-3xl font-black tracking-tight text-slate-950 dark:text-white">
-                        FoodHub<span className="text-orange-600">.</span>
+                        DishMarket<span className="text-orange-600">.</span>
                     </h1>
                     <p className="text-sm text-slate-400 font-medium">
                         Log in to access your culinary dashboard

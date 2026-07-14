@@ -72,7 +72,7 @@ export default function RegisterPage() {
 
                 <div>
                     <h2 className="text-2xl font-black text-slate-950 dark:text-white tracking-tight">Create Account</h2>
-                    <p className="text-xs text-slate-400 mt-1">Join the FoodHub ecosystem marketplace platform.</p>
+                    <p className="text-xs text-slate-400 mt-1">Join the DishMarket ecosystem marketplace platform.</p>
                 </div>
 
                 {error && (

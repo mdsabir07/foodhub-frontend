@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FoodHub | Discover & Order Delicious Meals",
+  title: "DishMarket | Discover & Order Delicious Meals",
   description: "Browse curated menus from various food providers and place orders instantly.",
 };
 

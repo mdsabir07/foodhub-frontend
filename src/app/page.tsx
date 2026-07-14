@@ -204,7 +204,7 @@ export default function HomePage() {
                 <Heart className="h-3.5 w-3.5 text-red-500 fill-red-500" /> Community Spotlight Kitchen
               </div>
               <h3 className="text-3xl font-black text-slate-950 dark:text-white tracking-tight leading-tight">Authentic Recipes, Craftsmanship, <span className="text-orange-600">Zero Shortcuts</span></h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-lg">Alex uses 20-year-old family recipes, slow-cooking daily to ensure perfection. He believes good food is a right, not a luxury. By ordering through FoodHub, you support culinary masters who prioritize quality over quick profits.</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-lg">Alex uses 20-year-old family recipes, slow-cooking daily to ensure perfection. He believes good food is a right, not a luxury. By ordering through DishMarket, you support culinary masters who prioritize quality over quick profits.</p>
               <Link href="/meals" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold text-xs hover:bg-slate-50 transition-colors shadow-sm cursor-pointer">
                 Try Alex's Seafood Paella <ArrowRight className="h-3.5 w-3.5" />
               </Link>
