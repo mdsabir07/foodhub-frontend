@@ -40,18 +40,23 @@ export default function LoginPage() {
             const loggedUser = data?.user as Record<string, unknown>;
 
             if (loggedUser) {
-
+                // Option B: Matches the exact uppercase casing from your Prisma database enum
                 const userRole = typeof loggedUser.role === "string" ? loggedUser.role.trim() : "";
                 const userName = (loggedUser.name as string) || "User";
+
                 toast.success(`Welcome back, ${userName}!`);
 
-                if (userRole === "ADMIN") {
-                    window.location.href = "/admin";
-                } else if (userRole === "PROVIDER") {
-                    window.location.href = "/provider/dashboard";
-                } else {
-                    window.location.href = "/meals";
-                }
+                // 💡 Gives the browser 150ms to successfully write the cross-domain session cookie
+                // before the page redirects, preventing the "logged out on arrival" issue.
+                setTimeout(() => {
+                    if (userRole === "ADMIN") {
+                        window.location.href = "/admin";
+                    } else if (userRole === "PROVIDER") {
+                        window.location.href = "/provider/dashboard";
+                    } else {
+                        window.location.href = "/meals";
+                    }
+                }, 150);
             }
         } catch (err: unknown) {
             console.error("❌ LOGIN ERROR:", err);
