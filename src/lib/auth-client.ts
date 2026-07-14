@@ -3,9 +3,10 @@ import { createAuthClient } from "better-auth/react";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL;
 
+// NEXT_PUBLIC_API_URL must be the BACKEND origin, e.g. https://dishmarket-backend.onrender.com
+// (i.e. it must NOT include /api)
 const authBaseURL = apiBase
-    ? // Expect NEXT_PUBLIC_API_URL to be the backend origin, e.g. https://api.example.com
-      `${apiBase.replace(/\/$/, "")}/api/auth`
+    ? `${apiBase.replace(/\/$/, "")}/api/auth`
     : "http://localhost:4000/api/auth";
 
 export const authClient = createAuthClient({
