@@ -44,7 +44,8 @@ export default function LoginPage() {
             if (loggedUser) {
                 toast.success(`Welcome back, ${loggedUser.name || "User"}!`);
 
-                const userRole = loggedUser.role; // "ADMIN" | "PROVIDER" | "CUSTOMER"
+                // Convert to lowercase to perfectly match "admin", "provider", or "customer" safely
+                const userRole = loggedUser.role?.toLowerCase();
 
                 if (userRole === "ADMIN") {
                     replace("/admin");
