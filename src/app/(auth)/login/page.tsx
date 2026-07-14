@@ -5,10 +5,8 @@ import Link from "next/link";
 import { authClient } from "@/src/lib/auth-client"; // Adjust based on your Better-Auth client path
 import { toast } from "react-hot-toast";
 import { Loader2, Mail, Lock, Shield } from "lucide-react";
-import { useAppRouter } from "@/src/hooks/useAppRouter";
 
 export default function LoginPage() {
-    const { replace } = useAppRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -43,7 +41,7 @@ export default function LoginPage() {
 
             if (loggedUser) {
 
-                const userRole = typeof loggedUser.role === "string" ? loggedUser.role.toLowerCase().trim() : "";
+                const userRole = typeof loggedUser.role === "string" ? loggedUser.role.trim() : "";
                 const userName = (loggedUser.name as string) || "User";
                 toast.success(`Welcome back, ${userName}!`);
 
