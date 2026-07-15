@@ -64,10 +64,11 @@ function MealsPageContent() {
                     }
                 }
 
-                // 💡 FIX: Filter out any meals that are hidden or soft-deleted (isAvailable === false)
-                const activeRawMeals = rawMealsArray.filter(
-                    (item: any) => item.isAvailable !== false && item.isDeleted !== true
-                );
+                // 💡 FIX: Type check safely checking custom dynamic properties without using 'any'
+                const activeRawMeals = rawMealsArray.filter((item: BackendMeal) => {
+                    const record = item as unknown as Record<string, unknown>;
+                    return record.isAvailable !== false && record.isDeleted !== true;
+                });
 
                 const normalizedData = activeRawMeals.map((item: BackendMeal): MealItem => {
                     let providerName = "Gourmet Bistro";
@@ -89,12 +90,15 @@ function MealsPageContent() {
                         categoryName = item.category.trim();
                     }
 
+                    const extendedItem = item as unknown as { reviews?: Array<{ id: string; rating: number; comment: string | null; createdAt: string }> };
+
+                    // 🛠️ Typings match perfectly to the updated MealItem shape
                     return {
-                        id: item.id || item._id || Math.random().toString(),
-                        name: item.title || item.name || "Untitled Meal",
+                        id: item.id || Math.random().toString(),
+                        name: item.name || "Untitled Meal",
                         provider: providerName,
                         price: Number(item.price) || 0,
-                        rating: item.rating || 4.8,
+                        reviews: extendedItem.reviews || [], // ✅ Correctly mapping raw database context array
                         time: item.time || "15-25 min",
                         category: categoryName,
                         image: typeof item.image === "string" && item.image.trim() !== "" ? item.image : "🍔"
@@ -124,6 +128,13 @@ function MealsPageContent() {
         }
     }, [selectedCategory, debouncedSearchQuery, router]);
 
+    // Helper utilities to safely compute rating values during structural local sort operations
+    const getAverageRating = (mealItem: MealItem) => {
+        if (!mealItem.reviews || mealItem.reviews.length === 0) return 0;
+        const total = mealItem.reviews.reduce((acc, curr) => acc + curr.rating, 0);
+        return total / mealItem.reviews.length;
+    };
+
     // ⚡ 4. Frontend Local Processing (Filters & Sorting fallback)
     const filteredAndSortedMeals = [...meals]
         .filter((meal) => {
@@ -133,13 +144,13 @@ function MealsPageContent() {
         .sort((a, b) => {
             if (sortBy === "price-low") return a.price - b.price;
             if (sortBy === "price-high") return b.price - a.price;
-            if (sortBy === "rating") return b.rating - a.rating;
+            if (sortBy === "rating") return getAverageRating(b) - getAverageRating(a); // ✅ Live relational aggregate sort logic
             return 0;
         });
 
     // ⚡ 5. Client-Side Pagination Layout Calculations
     const currentPage = Number(searchParams.get("page")) || 1;
-    const itemsPerPage = 6; // 💡 Renders a beautifully balanced grid sequence
+    const itemsPerPage = 6;
     const totalItems = filteredAndSortedMeals.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
 
@@ -156,7 +167,6 @@ function MealsPageContent() {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300 pb-24">
-
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
 
                 {/* 🔍 SEARCH AND FILTERS TOOLBAR */}
@@ -203,7 +213,6 @@ function MealsPageContent() {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
 
                     {/* 🏷️ LEFT SIDEBAR CATEGORIES */}
-                    {/* Simulator-ready configuration: Forces touch action and overflow mechanics on virtual simulated viewports */}
                     <div className="w-full min-w-0 overflow-hidden lg:overflow-visible lg:sticky lg:top-24 z-20 mb-4 lg:mb-0">
                         <div className="flex flex-row lg:flex-col items-center lg:items-stretch gap-2 w-full overflow-x-scroll lg:overflow-x-visible pb-3 lg:pb-0 
                             touch-pan-x lg:touch-auto
@@ -234,16 +243,14 @@ function MealsPageContent() {
                         </div>
                     </div>
 
-                    {/* 🥞 RIGHT SIDE meals LAYOUT AND CONDITIONAL RENDERING */}
+                    {/* 🥞 RIGHT SIDE LAYOUT AND CONDITIONAL RENDERING */}
                     <div className="lg:col-span-3">
                         {loading ? (
-                            /* 🔄 Centered Loading State */
                             <div className="flex flex-col items-center justify-center py-20 gap-3">
                                 <Loader2 className="h-8 w-8 text-orange-600 animate-spin" />
                                 <p className="text-sm text-slate-400 font-medium">Sourcing fresh dishes from local kitchens...</p>
                             </div>
                         ) : paginatedMeals.length === 0 ? (
-                            /* 🍽️ Centered "No Items Found" State */
                             <div className="flex items-center justify-center py-12 w-full">
                                 <div className="text-center py-16 px-8 w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 shadow-sm">
                                     <Utensils className="h-10 w-10 text-slate-300 mx-auto mb-3" />
@@ -253,7 +260,6 @@ function MealsPageContent() {
                             </div>
                         ) : (
                             <>
-                                {/* Products Grid (3 Columns on Desktop) */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                                     {paginatedMeals.map((meal) => (
                                         <MealCard
@@ -264,7 +270,6 @@ function MealsPageContent() {
                                     ))}
                                 </div>
 
-                                {/* 🛠️ NAVIGATION CONTROLS PANEL */}
                                 {totalPages > 1 && (
                                     <div className="mt-12 flex items-center justify-center gap-2">
                                         <button
@@ -305,7 +310,7 @@ function MealsPageContent() {
                 </div>
             </div>
 
-            {/* 🛒 MODULAR PORTABLE COMPONENT OVERLAYS */}
+            {/* 🛒 COMPONENT OVERLAYS */}
             <CartDrawer
                 isOpen={isCartOpen}
                 setIsOpen={setIsCartOpen}
