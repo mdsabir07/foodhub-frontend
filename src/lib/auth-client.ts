@@ -17,6 +17,26 @@ export const authClient = createAuthClient({
     baseURL: authBaseURL,
     fetchOptions: {
         credentials: "include",
+        onRequest: ({ options }) => {
+            if (typeof window !== "undefined") {
+                const token = localStorage.getItem("better-auth.session_token");
+                if (token) {
+                    options.headers = {
+                        ...options.headers,
+                        Authorization: `Bearer ${token}`,
+                    };
+                }
+            }
+        },
+        // 💾 Listen for new tokens from the server response and cache them
+        onResponse: ({ response }) => {
+            // ✅ Safely type-cast the response to include the custom '_data' field to satisfy ESLint
+            const responseData = (response as { _data?: Record<string, unknown> })._data;
+
+            if (responseData?.token && typeof window !== "undefined") {
+                localStorage.setItem("better-auth.session_token", responseData.token as string);
+            }
+        }
     },
 });
 
