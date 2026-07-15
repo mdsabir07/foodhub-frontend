@@ -9,7 +9,9 @@ const normalizedApiBase = apiBase
     ? apiBase.replace(/\/$/, "").replace(/\/api\/?$/, "")
     : "http://localhost:4000";
 
-const authBaseURL = `${normalizedApiBase}/api/auth`;
+// better-auth expects the baseURL to be the server origin; it internally appends `/api/auth`.
+// We intentionally pass ONLY the origin to avoid any chance of double `/api`.
+const authBaseURL = normalizedApiBase;
 
 export const authClient = createAuthClient({
     baseURL: authBaseURL,

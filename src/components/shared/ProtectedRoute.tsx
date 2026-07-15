@@ -15,26 +15,16 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     const { user, loading } = useAuth();
     const { navigate } = useAppRouter();
 
-    // Safely cast user to check the newly created dynamic database attributes
-    const extendedUser = user as any;
-    const isSuspended = extendedUser?.isSuspended === true;
+
+    const isSuspended = (user as {isSuspended?: boolean})?.isSuspended === true;
 
     useEffect(() => {
         if (!loading) {
-            // Avoid redirecting too aggressively on the first session read.
-            // On some live deployments the first session fetch can briefly return null.
-            // If session becomes available moments later, we prevent a "login loop".
-            if (!user) {
-                // Use latest closure-stable refs could be better, but keep it simple:
-                // capture current loading->null moment and redirect after a grace period.
-                const t = setTimeout(() => {
-                    navigate("/login");
-                }, 300);
-                return () => clearTimeout(t);
+            if(!user) {
+                navigate("/login");
+                return;
             }
-
-            // Role Mismatch Redirect (only if they aren't suspended)
-            if (user && !isSuspended && allowedRoles && !allowedRoles.includes(user.role)) {
+            if (!isSuspended && allowedRoles && !allowedRoles.includes(user.role)) {
                 navigate("/meals");
             }
         }
