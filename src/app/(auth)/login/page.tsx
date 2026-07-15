@@ -157,7 +157,7 @@ export default function LoginPage() {
                     <div className="grid grid-cols-1 gap-1.5 font-mono">
                         <div className="flex items-center gap-1">
                             <Shield className="h-3 w-3 text-red-500 shrink-0" />
-                            <span>Admin: admin@sabiha.com / AdminPass123!</span>
+                            <span>Customer: customer@muhammad.com / 12345678</span>
                         </div>
                     </div>
                 </div>
