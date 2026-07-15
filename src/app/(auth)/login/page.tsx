@@ -34,10 +34,17 @@ export default function LoginPage() {
                 return;
             }
 
-            // 🔍 2. Debug Log: Let's check exactly what the backend returned
-            console.log("Better Auth Response Data User:", data?.user);
+            // 🔍 2. Extract Token dynamically from the login data payload
+            // Better Auth heavily nested objects can hold token strings or session tokens directly
+            const authPayload = data as Record<string, any>;
+            const token = authPayload?.token || authPayload?.session?.token;
 
-            // ⚡ 3. Force an immediate session verification update
+            if (token) {
+                // Force save it instantly so the interceptor can grab it for subsequent calls
+                localStorage.setItem("better-auth.session_token", token);
+            }
+
+            // ⚡ 3. Force an immediate session verification update now that the token is set
             const sessionCheck = await authClient.getSession();
             console.log("Immediate Post-Login Session Check:", sessionCheck);
 
