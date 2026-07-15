@@ -2,17 +2,28 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import Image from "next/image"; // Import Next.js Image
+import Image from "next/image";
 import { ArrowLeft, Star, Clock, ShoppingBag } from "lucide-react";
 import { useCart } from "@/src/hooks/useCart";
 import { CartDrawer } from "@/src/components/CartDrawer";
 import { OrderSuccessModal } from "@/src/components/OrderSuccessModal";
 import { useAppRouter } from "@/src/hooks/useAppRouter";
 
+// 🔐 1. Import your auth-client session hooks to check login status
+// Replace this with your exact session import if it resides elsewhere (e.g. "@/src/lib/auth-client")
+import { useSession } from "@/src/lib/auth-client";
+
+// 💬 2. Import our newly built MealReviews component
+import MealReviews from "@/src/components/MealReviews";
+
 export default function MealDetailsPage() {
     const params = useParams();
     const { back } = useAppRouter();
     const { cart, addToCart, removeFromCart, clearItemRow } = useCart();
+
+    // 🔐 Get session data to see if the user is logged in
+    const { data: session } = useSession();
+    const isLoggedIn = !!session?.user;
 
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
@@ -31,8 +42,7 @@ export default function MealDetailsPage() {
         category: "Specialties",
         image: "https://images.pexels.com/photos/6978186/pexels-photo-6978186.jpeg",
         description: "Vetted by our internal food safety board, this premium formulation brings fresh, farm-sourced local protein and organic hand-cut elements directly to your table."
-    }
-
+    };
 
     if (!meal) {
         return (
@@ -57,10 +67,9 @@ export default function MealDetailsPage() {
                 {/* Core details layout card */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-8 shadow-xs">
 
-                    {/* 💡 Fixed: Big visual graphic thumbnail layout frame using next/image */}
+                    {/* Big visual graphic thumbnail */}
                     <div className="relative bg-slate-50 dark:bg-slate-950 aspect-square rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-900/40">
                         {meal.image && !meal.image.startsWith("http") ? (
-                            // Fallback rendering fallback emoji logic if data row saves strings like "🍳"
                             <div className="flex items-center justify-center h-full text-7xl select-none">
                                 {meal.image}
                             </div>
@@ -69,7 +78,7 @@ export default function MealDetailsPage() {
                                 src={meal.image}
                                 alt={meal.name}
                                 fill
-                                priority // Core Above-The-Fold layout asset gets loaded immediately
+                                priority
                                 sizes="(max-w-4xl) 50vw, 100vw"
                                 className="object-cover"
                             />
@@ -91,8 +100,12 @@ export default function MealDetailsPage() {
                             </p>
 
                             <div className="flex items-center gap-4 pt-2 text-xs font-bold text-slate-600 dark:text-slate-300">
-                                <div className="flex items-center gap-1"><Star className="h-4 w-4 text-amber-500 fill-amber-500" /> {meal.rating} Reviews</div>
-                                <div className="flex items-center gap-1"><Clock className="h-4 w-4 text-slate-400" /> {meal.time}</div>
+                                <div className="flex items-center gap-1">
+                                    <Star className="h-4 w-4 text-amber-500 fill-amber-500" /> {meal.rating} Reviews
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <Clock className="h-4 w-4 text-slate-400" /> {meal.time}
+                                </div>
                             </div>
 
                             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed pt-2">
@@ -116,15 +129,27 @@ export default function MealDetailsPage() {
                                 <ShoppingBag className="h-4 w-4" /> Include in Market Basket
                             </button>
                         </div>
-
                     </div>
                 </div>
 
+                {/* 💬 3. Integrated Live Database Reviews Module */}
+                {id && (
+                    <MealReviews
+                        mealId={id}
+                        isLoggedIn={isLoggedIn}
+                    />
+                )}
+
             </div>
 
-            {/* Shared Portable Overlays overlay switches */}
+            {/* Shared Portable Overlays */}
             <CartDrawer
-                isOpen={isCartOpen} setIsOpen={setIsCartOpen} cart={cart} addToCart={addToCart} removeFromCart={removeFromCart} clearItemRow={clearItemRow}
+                isOpen={isCartOpen}
+                setIsOpen={setIsCartOpen}
+                cart={cart}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+                clearItemRow={clearItemRow}
                 onCheckoutSuccess={(id) => { setCurrentOrderId(id); setShowSuccess(true); }}
             />
             <OrderSuccessModal isOpen={showSuccess} orderId={currentOrderId} onClose={() => setShowSuccess(false)} />
