@@ -1,18 +1,28 @@
 "use client";
 
+import { useMemo } from "react";
 import { Clock, ShoppingBag, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+
+// 📝 1. Define the structural review shape expected from your Prisma schema payload
+export interface MealReviewItem {
+    id: string;
+    rating: number;
+    comment: string | null;
+    createdAt: string;
+}
 
 export interface MealItem {
     id: string;
     name: string;
     provider: string;
     price: number;
-    rating: number;
     time: string;
     category: string;
     image: string;
+    // 🏷️ Add the real dynamic review array from your backend relations
+    reviews?: MealReviewItem[];
 }
 
 interface MealCardProps {
@@ -21,37 +31,62 @@ interface MealCardProps {
 }
 
 export default function MealCard({ meal, onAddToCart }: MealCardProps) {
+    // 📊 2. Safely compute the true review aggregations on the fly
+    const { averageRating, totalReviews } = useMemo(() => {
+        const reviewList = meal.reviews || [];
+        if (reviewList.length === 0) {
+            return { averageRating: 0, totalReviews: 0 };
+        }
+
+        const sum = reviewList.reduce((acc, curr) => acc + curr.rating, 0);
+        const avg = sum / reviewList.length;
+
+        // Format to 1 decimal place (e.g., 4.5)
+        return {
+            averageRating: parseFloat(avg.toFixed(1)),
+            totalReviews: reviewList.length
+        };
+    }, [meal.reviews]);
+
     return (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800/60 p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
             <div>
-                {/* { 1. meal image / emoji} */}
+                {/* 1. Meal image / emoji */}
                 <div className="relative w-full h-48 mb-3 overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800">
                     {meal.image && meal.image.startsWith("http") ? (
                         <Image
                             src={meal.image}
                             alt={meal.name}
-                            fill // Tells Next.js to fill the parent container completely
-                            sizes="(max-w-7xl) 33vw, 100vw" // Helps Next.js choose the right size
+                            fill
+                            sizes="(max-w-7xl) 33vw, 100vw"
                             className="object-cover transition-transform duration-300 hover:scale-105"
                         />
                     ) : (
                         <div className="flex items-center justify-center h-full text-4xl">
-                            {meal.image || "🍲" /* Fallback to a default emoji if no image is provided */}
+                            {meal.image || "🍲"}
                         </div>
                     )}
                 </div>
+
                 {/* 2. Meal name */}
                 <Link href={`/meals/${meal.id}`} className="hover:text-orange-600 transition-colors">
                     <h3 className="font-bold text-lg text-slate-900 dark:text-white line-clamp-1">{meal.name}</h3>
                 </Link>
+
                 {/* 3. Provider name */}
                 <p className="text-xs text-slate-500 mt-1">{meal.provider}</p>
-                {/* 4. Details Row */}
+
+                {/* 4. Details Row (Displaying Real Dynamic Data) */}
                 <div className="flex items-center gap-4 mt-3 text-xs text-slate-400">
                     <div className="flex items-center gap-1">
-                        <Star className="h-3.5 w-3.5 fill-amber-400 stroke-amber-400" />
+                        <Star
+                            className={`h-3.5 w-3.5 ${totalReviews > 0
+                                    ? "fill-amber-400 stroke-amber-400"
+                                    : "text-slate-300 dark:text-slate-600"
+                                }`}
+                        />
                         <span className="font-semibold text-slate-600 dark:text-slate-300">
-                            {meal.rating}
+                            {totalReviews > 0 ? `${averageRating} (${totalReviews})` : "No reviews"}
                         </span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -60,6 +95,7 @@ export default function MealCard({ meal, onAddToCart }: MealCardProps) {
                     </div>
                 </div>
             </div>
+
             {/* 5. Bottom Row: Price and Action Button */}
             <div className="mt-5 flex items-center justify-between border-t border-slate-50 dark:border-slate-800/40 pt-4">
                 <span className="text-lg font-bold text-slate-900 dark:text-white">
