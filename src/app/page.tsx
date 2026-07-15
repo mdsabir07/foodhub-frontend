@@ -9,6 +9,7 @@ import MealCard, { MealItem } from "@/src/components/MealCard";
 import { useCart } from "@/src/hooks/useCart";
 import { CartDrawer } from "@/src/components/CartDrawer";
 import { OrderSuccessModal } from "@/src/components/OrderSuccessModal";
+import Hero from "../components/Hero";
 
 export default function HomePage() {
   // 🛒 Hook up cart engine core
@@ -87,29 +88,11 @@ export default function HomePage() {
 
       {/* MAIN CONTENT SPACE */}
       <div className="flex-grow">
-        {/* 🚀 MEANINGFUL SECTION 1: HERO SPOTLIGHT */}
-        <header className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 font-semibold text-xs tracking-wide uppercase mx-auto">
-            <Flame className="h-3.5 w-3.5 animate-pulse" /> Local Kitchens Delivered Fast
-          </div>
+        {/* ⚡ Option A: Using the cinematic background video */}
+        <Hero useVideo={true} />
 
-          <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-slate-900 dark:text-white max-w-3xl mx-auto leading-tight sm:leading-none">
-            Savor Premium Dishes Cooked By <span className="text-orange-600">Neighborhood Experts</span>
-          </h1>
-
-          <p className="text-base sm:text-lg text-slate-500 dark:text-slate-400 max-w-xl mx-auto font-medium">
-            Skip the generic fast food chains. Order authentic, farm-fresh meals crafted with passion by curated culinary artists near you.
-          </p>
-
-          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/meals"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-orange-600 text-white font-bold rounded-2xl shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-all cursor-pointer group"
-            >
-              Explore Live Menu <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-        </header>
+        {/* ⚡ Option B: If you prefer the sliding background images, simply write: */}
+        {/* <Hero useVideo={false} /> */}
 
         {/* TRUST BADGES & VALUE PROPOSITION */}
         <section className="bg-white dark:bg-slate-900 border-y border-slate-100 dark:border-slate-900 py-10 mb-16 shadow-inner">
