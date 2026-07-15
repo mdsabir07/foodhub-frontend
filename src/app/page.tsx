@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Flame, Utensils, Award, Heart, ChevronRight, Star, ShoppingBag } from "lucide-react";
+import { ArrowRight, Utensils, Award, Heart, ChevronRight, Star, ShoppingBag } from "lucide-react";
 import { mealService, BackendMeal } from "@/src/services/mealService";
 import MealCard, { MealItem } from "@/src/components/MealCard";
 import { useCart } from "@/src/hooks/useCart";
