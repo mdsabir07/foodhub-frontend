@@ -6,29 +6,32 @@ const normalizedApiBase = apiBase
     ? apiBase.replace(/\/$/, "").replace(/\/api\/?$/, "")
     : "http://localhost:4000";
 
-const authBaseURL = normalizedApiBase;
-
 export const authClient = createAuthClient({
-    baseURL: authBaseURL,
+    baseURL: normalizedApiBase,
     fetchOptions: {
         credentials: "include",
-        // 🔐 Injected via a safe dynamic context object to satisfy the Next.js production compiler
         onRequest: (context: Record<string, any>) => {
             if (typeof window !== "undefined") {
                 const token = localStorage.getItem("better-auth.session_token");
                 if (token && context.options) {
                     context.options.headers = {
                         ...context.options.headers,
+                        // Forward as a token header for the backend bearer plugin
                         Authorization: `Bearer ${token}`,
                     };
                 }
             }
         },
-        // 💾 Listen for new tokens from the server response and cache them
         onResponse: ({ response }) => {
-            const responseData = (response as { _data?: Record<string, unknown> })._data;
-            if (responseData?.token && typeof window !== "undefined") {
-                localStorage.setItem("better-auth.session_token", responseData.token as string);
+            if (typeof window !== "undefined") {
+                const responseData = (response as { _data?: Record<string, any> })._data;
+
+                // Extract token string explicitly sent back by the bearer plugin
+                const token = responseData?.token || responseData?.session?.token;
+
+                if (token) {
+                    localStorage.setItem("better-auth.session_token", token);
+                }
             }
         }
     }
