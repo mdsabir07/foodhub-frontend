@@ -25,7 +25,7 @@ function MealsPageContent() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-    const [selectedCategory, setSelectedCategory] = useState("All");
+    const [selectedCategory, setSelectedCategory] = useState("All Categories");
     const [sortBy, setSortBy] = useState<SortOption>("default");
     const [isSortOpen, setIsSortOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
@@ -113,7 +113,7 @@ function MealsPageContent() {
     }, [selectedCategory, debouncedSearchQuery]);
 
     // ⚡ 3. Derived State: Compile list of unique category tags on the fly
-    const categories = ["All", ...Array.from(new Set(meals.map((m) => m.category).filter(Boolean)))];
+    const categories = ["All Categories", ...Array.from(new Set(meals.map((m) => m.category).filter(Boolean)))];
 
     // Reset current page when user selects a new category or searches
     useEffect(() => {
@@ -127,7 +127,7 @@ function MealsPageContent() {
     // ⚡ 4. Frontend Local Processing (Filters & Sorting fallback)
     const filteredAndSortedMeals = [...meals]
         .filter((meal) => {
-            if (selectedCategory === "All") return true;
+            if (selectedCategory === "All Categories") return true;
             return String(meal.category).toLowerCase() === selectedCategory.toLowerCase();
         })
         .sort((a, b) => {
@@ -156,6 +156,7 @@ function MealsPageContent() {
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-300 pb-24">
+
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
 
                 {/* 🔍 SEARCH AND FILTERS TOOLBAR */}
@@ -198,86 +199,110 @@ function MealsPageContent() {
                     </div>
                 </div>
 
-                {/* 🏷️ DYNAMIC NAVIGATION CATEGORY TABS */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-8 no-scrollbar">
-                    {categories.map((category) => {
-                        const isActive = selectedCategory.toLowerCase() === category.toLowerCase();
-                        return (
-                            <button
-                                key={category}
-                                onClick={() => setSelectedCategory(category)}
-                                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap cursor-pointer transition-all ${isActive
-                                    ? "bg-orange-600 text-white shadow-md shadow-orange-600/20"
-                                    : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-800/80 hover:bg-slate-50"
-                                    }`}
-                            >
-                                {category}
-                            </button>
-                        );
-                    })}
-                </div>
+                {/* 🏗️ MAIN CONTENT SPLIT LAYER */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
 
-                {/* 🥞 LIVE PRODUCTS CARDS DISPLAY LAYER */}
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center py-20 gap-3">
-                        <Loader2 className="h-8 w-8 text-orange-600 animate-spin" />
-                        <p className="text-sm text-slate-400 font-medium">Sourcing fresh dishes from local kitchens...</p>
-                    </div>
-                ) : paginatedMeals.length === 0 ? (
-                    <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 p-8 max-w-md mx-auto">
-                        <Utensils className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                        <h3 className="font-bold text-lg text-slate-800 dark:text-white">No items found</h3>
-                        <p className="text-sm text-slate-400 mt-1">We couldn't find matching menu options. Try adjusting your filter tags or search keyword!</p>
-                    </div>
-                ) : (
-                    <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {paginatedMeals.map((meal) => (
-                                <MealCard
-                                    key={meal.id}
-                                    meal={meal}
-                                    onAddToCart={addToCart}
-                                />
-                            ))}
-                        </div>
-
-                        {/* 🛠️ NAVIGATION CONTROLS PANEL */}
-                        {totalPages > 1 && (
-                            <div className="mt-12 flex items-center justify-center gap-2">
-                                <button
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                                    aria-label="Previous Page"
-                                >
-                                    <ChevronLeft className="h-5 w-5" />
-                                </button>
-
-                                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    {/* 🏷️ LEFT SIDEBAR CATEGORIES */}
+                    {/* Simulator-ready configuration: Forces touch action and overflow mechanics on virtual simulated viewports */}
+                    <div className="w-full min-w-0 overflow-hidden lg:overflow-visible lg:sticky lg:top-24 z-20 mb-4 lg:mb-0">
+                        <div className="flex flex-row lg:flex-col items-center lg:items-stretch gap-2 w-full overflow-x-scroll lg:overflow-x-visible pb-3 lg:pb-0 
+                            touch-pan-x lg:touch-auto
+                            scrollbar
+                            [scrollbar-width:thin]
+                            [scrollbar-color:#ea580c_transparent]
+                            [&::-webkit-scrollbar]:h-2
+                            [&::-webkit-scrollbar]:block
+                            [&::-webkit-scrollbar-track]:bg-slate-100/50
+                            [&::-webkit-scrollbar-track]:dark:bg-slate-800/50
+                            [&::-webkit-scrollbar-thumb]:bg-orange-600
+                            [&::-webkit-scrollbar-thumb]:rounded-full">
+                            {categories.map((category) => {
+                                const isActive = selectedCategory.toLowerCase() === category.toLowerCase();
+                                return (
                                     <button
-                                        key={page}
-                                        onClick={() => handlePageChange(page)}
-                                        className={`px-4 py-2 text-sm font-bold rounded-xl transition-all cursor-pointer border ${currentPage === page
-                                            ? "bg-orange-600 text-white border-orange-600 shadow-md shadow-orange-600/10"
-                                            : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                        key={category}
+                                        onClick={() => setSelectedCategory(category)}
+                                        className={`px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap lg:text-left transition-all cursor-pointer border shrink-0 ${isActive
+                                            ? "bg-orange-600 text-white border-orange-600 shadow-md shadow-orange-600/20"
+                                            : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-100 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800"
                                             }`}
                                     >
-                                        {page}
+                                        {category}
                                     </button>
-                                ))}
+                                );
+                            })}
+                        </div>
+                    </div>
 
-                                <button
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                                    aria-label="Next Page"
-                                >
-                                    <ChevronRight className="h-5 w-5" />
-                                </button>
+                    {/* 🥞 RIGHT SIDE meals LAYOUT AND CONDITIONAL RENDERING */}
+                    <div className="lg:col-span-3">
+                        {loading ? (
+                            /* 🔄 Centered Loading State */
+                            <div className="flex flex-col items-center justify-center py-20 gap-3">
+                                <Loader2 className="h-8 w-8 text-orange-600 animate-spin" />
+                                <p className="text-sm text-slate-400 font-medium">Sourcing fresh dishes from local kitchens...</p>
                             </div>
+                        ) : paginatedMeals.length === 0 ? (
+                            /* 🍽️ Centered "No Items Found" State */
+                            <div className="flex items-center justify-center py-12 w-full">
+                                <div className="text-center py-16 px-8 w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 shadow-sm">
+                                    <Utensils className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                                    <h3 className="font-bold text-lg text-slate-800 dark:text-white">No items found</h3>
+                                    <p className="text-sm text-slate-400 mt-1">We couldn't find matching menu options. Try adjusting your filter tags or search keyword!</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Products Grid (3 Columns on Desktop) */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    {paginatedMeals.map((meal) => (
+                                        <MealCard
+                                            key={meal.id}
+                                            meal={meal}
+                                            onAddToCart={addToCart}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* 🛠️ NAVIGATION CONTROLS PANEL */}
+                                {totalPages > 1 && (
+                                    <div className="mt-12 flex items-center justify-center gap-2">
+                                        <button
+                                            onClick={() => handlePageChange(currentPage - 1)}
+                                            disabled={currentPage === 1}
+                                            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                                            aria-label="Previous Page"
+                                        >
+                                            <ChevronLeft className="h-5 w-5" />
+                                        </button>
+
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                            <button
+                                                key={page}
+                                                onClick={() => handlePageChange(page)}
+                                                className={`px-4 py-2 text-sm font-bold rounded-xl transition-all cursor-pointer border ${currentPage === page
+                                                    ? "bg-orange-600 text-white border-orange-600 shadow-md shadow-orange-600/10"
+                                                    : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                                    }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        ))}
+
+                                        <button
+                                            onClick={() => handlePageChange(currentPage + 1)}
+                                            disabled={currentPage === totalPages}
+                                            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                                            aria-label="Next Page"
+                                        >
+                                            <ChevronRight className="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         )}
-                    </>
-                )}
+                    </div>
+                </div>
             </div>
 
             {/* 🛒 MODULAR PORTABLE COMPONENT OVERLAYS */}
