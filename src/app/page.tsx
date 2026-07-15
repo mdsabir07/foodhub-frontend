@@ -11,6 +11,15 @@ import { CartDrawer } from "@/src/components/CartDrawer";
 import { OrderSuccessModal } from "@/src/components/OrderSuccessModal";
 import Hero from "../components/Hero";
 
+// 📝 Helper to safely calculate dynamic average ratings for spotlight filtering
+const getAverageRating = (mealItem: MealItem): number => {
+  if (!mealItem.reviews || mealItem.reviews.length === 0) {
+    return 4.8; // Fallback placeholder rating for newly added items to keep the spotlight populated
+  }
+  const total = mealItem.reviews.reduce((acc, curr) => acc + curr.rating, 0);
+  return total / mealItem.reviews.length;
+};
+
 export default function HomePage() {
   // 🛒 Hook up cart engine core
   const { cart, addToCart, removeFromCart, clearItemRow } = useCart();
@@ -50,20 +59,26 @@ export default function HomePage() {
             if (typeof providerObj.name === "string") providerName = providerObj.name;
           }
 
+          // 💡 Safe Type Casting: Extrapolate real reviews array relation cleanly
+          const extendedItem = item as unknown as {
+            reviews?: Array<{ id: string; rating: number; comment: string | null; createdAt: string }>
+          };
+
           return {
             id: item.id || item._id || Math.random().toString(),
             name: item.title || item.name || "Premium Dish",
             provider: providerName,
             price: Number(item.price) || 0,
-            rating: item.rating || 4.8,
+            reviews: extendedItem.reviews || [], // ✅ Inject real dynamic database array
             time: item.time || "20-30 min",
             category: typeof item.category === "string" ? item.category : ((item.category as Record<string, unknown>)?.name as string | undefined) || "General",
             image: typeof item.image === "string" && item.image.trim() !== "" ? item.image : "🍳"
           };
         });
 
+        // 🌟 Filter using the computed dynamic average rating
         const spotlightItems = normalizedData
-          .filter(meal => meal.rating >= 4.7)
+          .filter(meal => getAverageRating(meal) >= 4.7)
           .slice(0, 3);
 
         setFeaturedMeals(spotlightItems);
@@ -90,9 +105,6 @@ export default function HomePage() {
       <div className="flex-grow">
         {/* ⚡ Option A: Using the cinematic background video */}
         <Hero useVideo={true} />
-
-        {/* ⚡ Option B: If you prefer the sliding background images, simply write: */}
-        {/* <Hero useVideo={false} /> */}
 
         {/* TRUST BADGES & VALUE PROPOSITION */}
         <section className="bg-white dark:bg-slate-900 border-y border-slate-100 dark:border-slate-900 py-10 mb-16 shadow-inner">
@@ -152,7 +164,7 @@ export default function HomePage() {
                 <MealCard
                   key={meal.id}
                   meal={meal}
-                  onAddToCart={handleAddToCart} // 🔥 Triggers local function to slide open drawer
+                  onAddToCart={handleAddToCart}
                 />
               ))}
             </div>
@@ -162,8 +174,6 @@ export default function HomePage() {
         {/* KITCHEN STORY SPOTLIGHT */}
         <section className="bg-slate-100 dark:bg-slate-900/40 py-16 mb-16 border-y border-slate-200 dark:border-slate-800/80">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-
-            {/* Note: I'm using an external portrait image here to simulate the 'Chef'. */}
             <div className="relative aspect-video sm:aspect-square rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800">
               <Image
                 src="https://images.unsplash.com/photo-1581382575275-97901c2635b7?q=80&w=600&auto=format&fit=crop"
