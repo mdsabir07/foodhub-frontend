@@ -26,12 +26,10 @@ export default function Hero({ useVideo = true }: HeroProps) {
     }, [useVideo]);
 
     return (
-        // 🎨 Unified Dark Canvas Background: Keeps elements legible in all app display modes
-        <div className="relative w-full min-h-[70vh] flex items-center justify-center overflow-hidden bg-[#0a1120]">
+        <div className="relative w-full min-h-[90vh] flex items-center justify-center overflow-hidden bg-[#0a1120]">
 
-            {/* ✅ FIXED: Swapped out broken '&&' layout logic with clean ternary '?' condition */}
             {useVideo ? (
-                /* 🎬 Video Layer */
+                /* 🎬 Video Layer - Now pulling safely from local public folder */
                 <div className="absolute inset-0 w-full h-full object-cover">
                     <video
                         autoPlay
@@ -39,10 +37,10 @@ export default function Hero({ useVideo = true }: HeroProps) {
                         muted
                         playsInline
                         preload="auto"
-                        className="w-full h-full object-cover opacity-25 scale-105"
+                        className="w-full h-full object-cover opacity-50 scale-105"
                     >
                         <source
-                            src="https://assets.mixkit.co/videos/preview/mixkit-cooking-in-a-modern-kitchen-41614-large.mp4"
+                            src="/hero-cooking.mp4"
                             type="video/mp4"
                         />
                         Your browser does not support the video tag.
@@ -54,7 +52,7 @@ export default function Hero({ useVideo = true }: HeroProps) {
                     {SLIDE_IMAGES.map((image, index) => (
                         <div
                             key={image}
-                            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out scale-105 ${index === currentSlide ? "opacity-20" : "opacity-0"
+                            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out scale-105 ${index === currentSlide ? "opacity-50" : "opacity-0"
                                 }`}
                             style={{ backgroundImage: `url('${image}')` }}
                         />
@@ -63,7 +61,7 @@ export default function Hero({ useVideo = true }: HeroProps) {
             )}
 
             {/* Overlays: Fades smoothly to transparent at the footer line */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-[#0a1120]/75 to-[#0a1120]/95 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-[#0a1120]/25 to-[#0a1120]/45 pointer-events-none" />
 
             {/* 🚀 Content Workspace */}
             <header className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center space-y-6 z-10">
