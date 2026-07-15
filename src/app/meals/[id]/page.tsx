@@ -1,27 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Star, Clock, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Star, Clock, ShoppingBag, Loader2 } from "lucide-react";
 import { useCart } from "@/src/hooks/useCart";
 import { CartDrawer } from "@/src/components/CartDrawer";
 import { OrderSuccessModal } from "@/src/components/OrderSuccessModal";
 import { useAppRouter } from "@/src/hooks/useAppRouter";
 
-// 🔐 1. Import your auth-client session hooks to check login status
-// Replace this with your exact session import if it resides elsewhere (e.g. "@/src/lib/auth-client")
+// 🔐 Import your auth-client session hooks to check login status
 import { useSession } from "@/src/lib/auth-client";
-
-// 💬 2. Import our newly built MealReviews component
+// 💬 Import our newly built MealReviews component
 import MealReviews from "@/src/components/MealReviews";
+// 📦 Import your shared MealItem type
+import { MealItem } from "@/src/components/MealCard";
+
+// 📝 Extend MealItem locally to include description for the details page
+interface MealDetailData extends MealItem {
+    description?: string;
+}
 
 export default function MealDetailsPage() {
     const params = useParams();
     const { back } = useAppRouter();
     const { cart, addToCart, removeFromCart, clearItemRow } = useCart();
 
-    // 🔐 Get session data to see if the user is logged in
+    // 🔐 Get session data
     const { data: session } = useSession();
     const isLoggedIn = !!session?.user;
 
@@ -29,24 +34,77 @@ export default function MealDetailsPage() {
     const [showSuccess, setShowSuccess] = useState(false);
     const [currentOrderId, setCurrentOrderId] = useState("");
 
-    // Safely extract and format the ID as a string
+    // ⚡ Dynamic Data States
+    const [meal, setMeal] = useState<MealDetailData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    // Safely extract ID
     const id = Array.isArray(params?.id) ? params.id[0] : params?.id || "";
 
-    const meal = {
-        id: id,
-        name: "Signature premium plate",
-        provider: "Gourmet Artisan Kitchen",
-        price: 24.50,
-        rating: 4.9,
-        time: "20-30 min",
-        category: "Specialties",
-        image: "https://images.pexels.com/photos/6978186/pexels-photo-6978186.jpeg",
-        description: "Vetted by our internal food safety board, this premium formulation brings fresh, farm-sourced local protein and organic hand-cut elements directly to your table."
-    };
+    // 🔄 Fetch live meal data on page mount
+    useEffect(() => {
+        if (!id) return;
 
-    if (!meal) {
+        const fetchSingleMeal = async () => {
+            try {
+                setLoading(true);
+                // Fetch direct from your API route (Update path if your single meal endpoint differs)
+                const res = await fetch(`/api/meals/${id}`);
+                if (!res.ok) throw new Error("Failed to fetch meal data");
+
+                const responseData = await res.json();
+
+                // Accommodate standard API payload wrappers
+                const rawItem = responseData.meal || responseData.data || responseData;
+
+                // Safely normalize relational strings
+                let providerName = "Gourmet Artisan Kitchen";
+                if (rawItem.kitchen?.name) providerName = rawItem.kitchen.name;
+                else if (rawItem.provider?.name) providerName = rawItem.provider.name;
+                else if (typeof rawItem.provider === "string") providerName = rawItem.provider;
+
+                let categoryName = "Specialties";
+                if (rawItem.category?.name) categoryName = rawItem.category.name;
+                else if (typeof rawItem.category === "string") categoryName = rawItem.category;
+
+                // Tell TS about the relations to bypass 'any' errors
+                const extendedItem = rawItem as unknown as {
+                    reviews?: Array<{ id: string; rating: number; comment: string | null; createdAt: string }>
+                };
+
+                setMeal({
+                    id: rawItem.id || id,
+                    name: rawItem.name || rawItem.title || "Untitled Dish",
+                    provider: providerName,
+                    price: Number(rawItem.price) || 0,
+                    reviews: extendedItem.reviews || [],
+                    time: rawItem.time || "20-30 min",
+                    category: categoryName,
+                    image: typeof rawItem.image === "string" && rawItem.image.trim() !== "" ? rawItem.image : "",
+                    description: rawItem.description || "Vetted by our internal food safety board, this premium formulation brings fresh, farm-sourced local protein and organic hand-cut elements directly to your table."
+                });
+
+            } catch (error) {
+                console.error("Error fetching meal details:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSingleMeal();
+    }, [id]);
+
+    // 📊 Compute dynamic review stats for the UI
+    const totalReviews = meal?.reviews?.length || 0;
+    const averageRating = totalReviews > 0
+        ? (meal!.reviews!.reduce((acc, curr) => acc + curr.rating, 0) / totalReviews).toFixed(1)
+        : "New";
+
+    // 🔄 Loading State UI
+    if (loading || !meal) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+            <div className="min-h-screen flex flex-col gap-4 items-center justify-center bg-slate-50 dark:bg-slate-950">
+                <Loader2 className="h-8 w-8 text-orange-600 animate-spin" />
                 <p className="text-sm text-slate-400 font-bold animate-pulse">Loading culinary assets...</p>
             </div>
         );
@@ -69,11 +127,7 @@ export default function MealDetailsPage() {
 
                     {/* Big visual graphic thumbnail */}
                     <div className="relative bg-slate-50 dark:bg-slate-950 aspect-square rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-900/40">
-                        {meal.image && !meal.image.startsWith("http") ? (
-                            <div className="flex items-center justify-center h-full text-7xl select-none">
-                                {meal.image}
-                            </div>
-                        ) : meal.image ? (
+                        {meal.image && meal.image.startsWith("http") ? (
                             <Image
                                 src={meal.image}
                                 alt={meal.name}
@@ -83,7 +137,9 @@ export default function MealDetailsPage() {
                                 className="object-cover"
                             />
                         ) : (
-                            <div className="flex items-center justify-center h-full text-7xl select-none">🍲</div>
+                            <div className="flex items-center justify-center h-full text-7xl select-none">
+                                {meal.image || "🍲"}
+                            </div>
                         )}
                     </div>
 
@@ -99,9 +155,11 @@ export default function MealDetailsPage() {
                                 Crafted and distributed by: <span className="text-orange-600 cursor-pointer hover:underline">{meal.provider}</span>
                             </p>
 
+                            {/* Dynamic Rating UI */}
                             <div className="flex items-center gap-4 pt-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                                 <div className="flex items-center gap-1">
-                                    <Star className="h-4 w-4 text-amber-500 fill-amber-500" /> {meal.rating} Reviews
+                                    <Star className={`h-4 w-4 ${totalReviews > 0 ? "text-amber-500 fill-amber-500" : "text-slate-300"}`} />
+                                    {totalReviews > 0 ? `${averageRating} (${totalReviews} Reviews)` : "No reviews yet"}
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <Clock className="h-4 w-4 text-slate-400" /> {meal.time}
@@ -132,7 +190,7 @@ export default function MealDetailsPage() {
                     </div>
                 </div>
 
-                {/* 💬 3. Integrated Live Database Reviews Module */}
+                {/* 💬 Integrated Live Database Reviews Module */}
                 {id && (
                     <MealReviews
                         mealId={id}
