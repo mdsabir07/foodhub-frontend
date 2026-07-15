@@ -24,8 +24,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/auth/:path*',
-        // Replace this string with your exact live Render backend URL endpoint
         destination: 'https://dishmarket-backend.onrender.com/api/auth/:path*',
+      },
+      {
+        // ⚡ NEW: Proxies /api/admin/* and other general resource requests safely under the first-party domain roof
+        source: '/api/:path*',
+        destination: 'https://dishmarket-backend.onrender.com/api/:path*',
       },
     ];
   },

@@ -10,7 +10,15 @@ export interface AdminUser {
 
 class AdminService {
     // ⚡ FIXED: Safely cleans up trailing slashes AND accidental duplicate /api paths from environment strings
+    // ⚡ FIXED: Forces relative routing in the browser to trigger Next.js proxy rewrites
     private readonly baseUrl = (() => {
+        // If we are running client-side (in the browser), use a relative path.
+        // This forces the request through the Next.js rewrite so cookies are sent securely.
+        if (typeof window !== "undefined") {
+            return "/api/admin";
+        }
+
+        // Fallback for server-side operations (like Metadata generation or SSR) and Local Development
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
         const cleanBase = apiUrl.replace(/\/$/, "").replace(/\/api\/?$/, "");
         return `${cleanBase}/api/admin`;
