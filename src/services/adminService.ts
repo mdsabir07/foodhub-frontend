@@ -9,20 +9,28 @@ export interface AdminUser {
 }
 
 class AdminService {
-    private readonly baseUrl = process.env.NEXT_PUBLIC_API_URL
-        ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")}/api/admin`
-        : "http://localhost:4000/api/admin";
+    // ⚡ FIXED: Safely cleans up trailing slashes AND accidental duplicate /api paths from environment strings
+    private readonly baseUrl = (() => {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+        const cleanBase = apiUrl.replace(/\/$/, "").replace(/\/api\/?$/, "");
+        return `${cleanBase}/api/admin`;
+    })();
 
-    // Standard headers for credential/cookie mapping
-    private getRequestOptions(method: string, body?: any): RequestInit {
-        return {
+    // ✅ FIXED: Using explicit conditional assignment instead of object spreading to resolve ts(2698)
+    private getRequestOptions(method: string, body?: unknown): RequestInit {
+        const options: RequestInit = {
             method,
             credentials: "include",
             headers: {
                 "Content-Type": "application/json",
             },
-            ...(body && { body: JSON.stringify(body) }),
         };
+
+        if (body !== undefined && body !== null) {
+            options.body = JSON.stringify(body);
+        }
+
+        return options;
     }
 
     // ==========================================================
@@ -31,7 +39,14 @@ class AdminService {
     async getAllUsers(): Promise<{ success: boolean; data?: AdminUser[]; error?: string }> {
         try {
             const res = await fetch(`${this.baseUrl}/users`, this.getRequestOptions("GET"));
-            const json = await res.json();
+
+            // Check if the server returned HTML error templates instead of valid JSON data string formats
+            const contentType = res.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error("Server returned non-JSON payload message response context.");
+            }
+
+            const json = await res.json() as { success: boolean; data?: AdminUser[]; error?: string };
 
             if (res.ok && json.success) return { success: true, data: json.data };
             return { success: false, error: json.error || "Failed to retrieve user directory." };
@@ -53,12 +68,18 @@ class AdminService {
                 `${this.baseUrl}/users/${id}`,
                 this.getRequestOptions("PATCH", { isSuspended })
             );
-            const json = await res.json();
+
+            const contentType = res.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error("Server returned non-JSON payload message response context.");
+            }
+
+            const json = await res.json() as { success: boolean; data?: AdminUser; message?: string; error?: string };
 
             if (res.ok && json.success) {
                 return { success: true, data: json.data };
             }
-            return { success: false, error: json.message || "Failed to update account privileges." };
+            return { success: false, error: json.message || json.error || "Failed to update account privileges." };
         } catch (error: unknown) {
             console.error("❌ ADMIN SERVICE TOGGLE STATUS ERROR:", error);
             return { success: false, error: "Network error: Could not write account state change." };
