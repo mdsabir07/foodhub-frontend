@@ -1,40 +1,15 @@
 import { createAuthClient } from "better-auth/react";
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL;
-
-const normalizedApiBase = apiBase
-    ? apiBase.replace(/\/$/, "").replace(/\/api\/?$/, "")
-    : "http://localhost:4000";
+// ⚡ Because of the next.config.ts rewrite, the backend now "lives" on your frontend's domain.
+// In production on Vercel, this automatically targets your live Vercel domain.
+// In development, this naturally targets http://localhost:3000.
+const authBaseURL = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
 
 export const authClient = createAuthClient({
-    baseURL: normalizedApiBase,
+    baseURL: authBaseURL,
     fetchOptions: {
-        credentials: "include",
-        onRequest: (context: Record<string, any>) => {
-            if (typeof window !== "undefined") {
-                const token = localStorage.getItem("better-auth.session_token");
-                if (token && context.options) {
-                    context.options.headers = {
-                        ...context.options.headers,
-                        // Forward as a token header for the backend bearer plugin
-                        Authorization: `Bearer ${token}`,
-                    };
-                }
-            }
-        },
-        onResponse: ({ response }) => {
-            if (typeof window !== "undefined") {
-                const responseData = (response as { _data?: Record<string, any> })._data;
-
-                // Extract token string explicitly sent back by the bearer plugin
-                const token = responseData?.token || responseData?.session?.token;
-
-                if (token) {
-                    localStorage.setItem("better-auth.session_token", token);
-                }
-            }
-        }
-    }
+        credentials: "include", // 👈 Vital to let the browser automatically store and pass cookies
+    },
 });
 
 export const { useSession, signIn, signUp, signOut } = authClient;

@@ -20,6 +20,15 @@ const nextConfig: NextConfig = {
     // instead of routing them through your local node server optimization pipeline.
     unoptimized: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/auth/:path*',
+        // Replace this string with your exact live Render backend URL endpoint
+        destination: 'https://dishmarket-backend.onrender.com/api/auth/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
