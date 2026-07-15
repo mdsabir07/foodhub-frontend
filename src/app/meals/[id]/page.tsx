@@ -166,9 +166,12 @@ export default function MealDetailsPage() {
                                 </div>
                             </div>
 
-                            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed pt-2">
-                                {meal.description}
-                            </p>
+                            {meal.description && (
+                                <div
+                                    className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed pt-2 prose dark:prose-invert"
+                                    dangerouslySetInnerHTML={{ __html: meal.description }}
+                                />
+                            )}
                         </div>
 
                         <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
