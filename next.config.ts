@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
     ],
     // 💡 FIX: Tells Next.js to let the browser download external assets directly 
     // instead of routing them through your local node server optimization pipeline.
-    unoptimized: true,
+    // unoptimized: true,
   },
   async rewrites() {
     return [
